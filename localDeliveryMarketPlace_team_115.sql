@@ -258,5 +258,7 @@ CREATE TABLE Feedback (
 );
 END ;
 
+CREATE PROCEDURE DROPAll
+
 
 
