@@ -103,7 +103,6 @@ CREATE TABLE Business (
     FOREIGN KEY (zone_id)    REFERENCES Zone(zone_id),
     CHECK (status = 'Suspended' OR suspension_reason IS NULL) ); 
  
--- A.11 Business_Phone
 CREATE TABLE Business_Phone (
     business_id INT      NOT NULL,
     phone       CHAR(11) NOT NULL,
@@ -257,8 +256,96 @@ CREATE TABLE Feedback (
     FOREIGN KEY (suborder_id) REFERENCES SubOrder(suborder_id)
 );
 END ;
+GO
 
-CREATE PROCEDURE DROPAll
+CREATE PROCEDURE dropALLTables 
+AS 
+BEGIN 
+  DROP TABLE Feedback;
+    DROP TABLE Payment;
+    DROP TABLE SubOrder;
+    DROP TABLE Orders;
+    DROP TABLE CartItem;
+    DROP TABLE Cart;
+    DROP TABLE Voucher;
+    DROP TABLE Favorite_Product;
+    DROP TABLE Favorite_Business;
+    DROP TABLE Product;
+    DROP TABLE Blacklist;
+    DROP TABLE Restaurant;
+    DROP TABLE Pharmacy;
+    DROP TABLE Business_Phone;
+    DROP TABLE Business;
+    DROP TABLE Card;
+    DROP TABLE Address;
+    DROP TABLE Customer;
+    DROP TABLE Rider;
+    DROP TABLE Partner;
+    DROP TABLE Admin;
+    DROP TABLE User_Phone;
+    DROP TABLE Users;
+    DROP TABLE Zone;
+END;
+GO
+
+CREATE PROCEDURE dropAllProceduresFunctionsViews
+AS
+BEGIN
+    DROP VIEW IF EXISTS allBusinessProfiles;
+    DROP VIEW IF EXISTS BusinessesPerZone;
+    DROP VIEW IF EXISTS BusinessRatingsSummary;
+    DROP VIEW IF EXISTS ActiveVouchers;
+    DROP VIEW IF EXISTS PendingBusinessApprovals;
+    DROP VIEW IF EXISTS RiderPerformanceSummary;
+    DROP VIEW IF EXISTS TopSellingProducts;
+    DROP VIEW IF EXISTS ZoneDeliveryPerformance;
+
+    DROP PROCEDURE IF EXISTS createAllTables;
+    DROP PROCEDURE IF EXISTS dropAllTables;
+    DROP PROCEDURE IF EXISTS clearAllTables;
+    -- Functions
+    -- DROP FUNCTION IF EXISTS functionName;
+END;
+GO
+
+CREATE PROCEDURE clearAllTables 
+AS 
+BEGIN 
+ EXEC dropAllTables;
+ EXEC createAllTables;
+END;
+GO
+
+EXEC createAllTables;
+GO
+
+CREATE VIEW allBusinessProfiles
+AS
+SELECT
+    B.business_id,
+    B.name AS business_name,
+    B.business_type,
+    Z.zone_name,
+    U.fisrt_name + ' ' + U.last_name AS partner_name,
+    B.status,
+    B.opening_hour,
+    B.closing_hour
+FROM Business B
+INNER JOIN Partner P
+    ON B.partner_id = P.partner_id
+INNER JOIN USRERS U
+    ON P.partner_id = U.user_id
+INNER JOIN Zone Z
+    ON B.zone_id = Z.zone_id;
+GO
+
+CREATE VIEW BusinessesPerZone 
+AS
+SELECT z.zone_id , z.zone_name, COUNT(b.business_id) AS business_count
+FROM zone z
+LEFT JOIN business b ON z.zone_id = b.zone_id  AND B.status = 'Active'
+GROUP BY z.zone_id , z.zone_name;
+GO
 
 
 
