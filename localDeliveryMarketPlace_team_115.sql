@@ -20,7 +20,8 @@ username VARCHA(30) NOT NULL UNIQUE,
 password  VARCHAR(30) NOT NULL ,
 email VARCHAR(100) NOT NULL UNIQUE ,
 dob DATE ,
-account VARCHAR(20) NOT NULL DEFAULT 'Active')
+aaccount_status VARCHAR(20) NOT NULL DEFAULT 'Active'
+    CHECK (account_status IN ('Active', 'Blacklisted')))
 
 CREATE TABLE User_Phone (
     user_id     INT      NOT NULL,
@@ -32,14 +33,15 @@ CREATE TABLE User_Phone (
 
 CREATE TABLE Admin (
     admin_id    INT PRIMARY KEY,
-    role        VARCHAR(20) NOT NULL DEFAULT 'Super Admin',
+    role        VARCHAR(20) NOT NULL DEFAULT 'Super Admin'
+                CHECK (role IN ('Super Admin', 'Zone Admin')),
     zone_id     INT NULL,
     FOREIGN KEY (admin_id) REFERENCES Users(user_id),
     FOREIGN KEY (zone_id)  REFERENCES Zone(zone_id),
-    CHECK (role <> 'Super Admin' OR zone_id IS NULL)   
+    CHECK (role <> 'Super Admin' OR zone_id IS NULL),
+    CHECK (role <> 'Zone Admin' OR zone_id IS NOT NULL)
 );
  
-
 CREATE TABLE Partner (
     partner_id  INT PRIMARY KEY,
     FOREIGN KEY (partner_id) REFERENCES Users(user_id)
@@ -95,7 +97,8 @@ CREATE TABLE Business (
     opening_hour            TIME NOT NULL,
     closing_hour            TIME NOT NULL,
     expected_delivery_time  INT  NOT NULL CHECK (expected_delivery_time > 0), 
-    status                  VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending'
+    CHECK (status IN ('Pending', 'Active', 'Suspended', 'Rejected')),
     suspension_reason       VARCHAR(255),
     partner_id              INT NOT NULL UNIQUE,
     zone_id                 INT NOT NULL,
@@ -173,7 +176,8 @@ CREATE TABLE Voucher (
     is_percentage BIT NOT NULL,
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     expiry_date DATE NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'Unused',
+    status VARCHAR(20) NOT NULL DEFAULT 'Unused'
+    CHECK (status IN ('Unused', 'Used')),
     customer_id INT NOT NULL,
 
     FOREIGN KEY (customer_id) REFERENCES Customer(customer_id)
@@ -181,7 +185,8 @@ CREATE TABLE Voucher (
 
 CREATE TABLE Cart (
     cart_id INT IDENTITY(1,1) PRIMARY KEY,
-    status VARCHAR(20) NOT NULL DEFAULT 'Active',
+    status VARCHAR(20) NOT NULL DEFAULT 'Active'
+    CHECK (status IN ('Active', 'Checked Out')),
     created_at DATETIME NOT NULL DEFAULT GETDATE(),
     customer_id INT NOT NULL,
     address_id INT NOT NULL,
@@ -205,7 +210,8 @@ CREATE TABLE CartItem (
 CREATE TABLE Orders (
     order_id INT IDENTITY(1,1) PRIMARY KEY,
     order_date DATETIME NOT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'Placed',
+    status VARCHAR(20) NOT NULL DEFAULT 'Placed'
+    CHECK (status IN ('Placed', 'In Progress', 'Delivered', 'Cancelled')),
     discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     total_amount DECIMAL(10,2) NOT NULL,
     cart_id INT NOT NULL UNIQUE,
@@ -219,7 +225,8 @@ CREATE TABLE Orders (
 
 CREATE TABLE SubOrder (
     suborder_id INT IDENTITY(1,1) PRIMARY KEY,
-    status VARCHAR(20) NOT NULL DEFAULT 'Placed',
+   status VARCHAR(20) NOT NULL DEFAULT 'Placed'
+    CHECK (status IN ('Placed', 'Assigned', 'Picked Up', 'Delivered', 'Cancelled')),
     total_price DECIMAL(10,2) NOT NULL,
     delivery_fee DECIMAL(10,2) NOT NULL,
     order_id INT NOT NULL,
@@ -234,7 +241,8 @@ CREATE TABLE Payment (
     payment_id INT IDENTITY(1,1) PRIMARY KEY,
     amount DECIMAL(10,2) NOT NULL,
     currency VARCHAR(3) NOT NULL DEFAULT 'EGP',
-    method VARCHAR(20) NOT NULL,
+   method VARCHAR(20) NOT NULL
+    CHECK (method IN ('Cash', 'Card', 'Wallet')),
     transaction_date DATETIME NOT NULL,
     refunded_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     order_id INT NOT NULL UNIQUE,
