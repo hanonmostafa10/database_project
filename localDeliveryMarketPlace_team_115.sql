@@ -11,7 +11,7 @@ zone_id  INT IDENTITY(1,1) PRIMARY KEY,
 zone_name VARCHAR(50) NOT NULL UNIQUE ,
 delivery_fee DECIMAL(10,2) NOT NULL CHECK(delivery_fee>=0));
 
-CREATE TABLE USRERS (
+CREATE TABLE Users (
 user_id INT IDENTITY(1,10) PRIMARY KEY ,
 fisrt_name VARCHAR(30) NOT NULL ,
 middle_name VARCHAR(30),
@@ -346,6 +346,100 @@ FROM zone z
 LEFT JOIN business b ON z.zone_id = b.zone_id  AND B.status = 'Active'
 GROUP BY z.zone_id , z.zone_name;
 GO
+
+CREATE VIEW BusinessRatingsSummary
+AS
+SELECT b.business_id, b.name AS business_name, AVG(CAST(f.rating AS DECIMAL(3,2))) AS avg_rating, COUNT(f.feedbak_id) AS ratings_count
+FROM Business B
+LEFT JOIN SubOrder S
+    ON B.business_id = S.business_id
+LEFT JOIN Feedback F
+    ON S.suborder_id = F.suborder_id
+GROUP BY B.business_id, B.name;
+GO
+
+CREATE VIEW ActiveVouchers
+AS
+SELECT
+    voucher_id,
+    promo_code,
+    customer_id,
+    is_percentage,
+    amount,
+    expiry_date
+FROM Voucher
+WHERE status = 'Unused'
+  AND expiry_date >= CAST(GETDATE() AS DATE);
+  GO
+
+  CREATE VIEW PendingBusinessApprovals
+AS
+SELECT
+    B.business_id,
+    B.name AS business_name,
+    T.business_type,
+    Z.zone_name,
+    U.first_name + ' ' + U.last_name AS partner_name
+FROM Business B
+INNER JOIN Users U
+ON B.partner_id = U.user_id
+INNER JOIN Zone Z 
+ON B.zone_id = Z.zone_id
+LEFT JOIN (
+    SELECT business_id, 'Restaurant' AS business_type FROM Restaurant
+    UNION ALL
+    SELECT business_id, 'Pharmacy' FROM Pharmacy) T
+ON B.business_id = T.business_id
+WHERE B.status = 'Pending';
+GO
+
+CREATE VIEW RiderPerformanceSummary
+AS
+SELECT  R.rider_id,
+    u.first_name + ' ' + u.last_name AS rider_name,
+    Z.zone_name, COUNT(d.delivery_id) AS completed_deliveries,
+    AVG(CAST(D.rider_rating AS DECIMAL(3,2))) AS avg_rating
+    FROM Rider R
+    INNER JOIN Users u ON R.rider_id = u.user_id
+    INNER JOIN Zone z ON R.zone_id = z.zone_id
+    LEFT JOIN Delivery D  ON R.rider_id = D.rider_id
+    LEFT JOIN SubOrder S  ON D.suborder_id = S.suborder_id AND S.status = 'Delivered'
+    GROUP BY R.rider_id, U.first_name, U.last_name, Z.zone_name;
+GO
+
+CREATE VIEW TopSellingProducts
+AS 
+SELECT TOP 10 p.product_id, p.name AS product_name, b.name AS business_name,
+T.business_type, SUM(ci.quantity) AS units_sold, SUM(ci.quantity * ci.unit_price) AS total_revenue
+FROM Product P
+INNER JOIN Business B  ON P.business_id = B.business_id
+INNER JOIN CartItem CI ON P.product_id = CI.product_id
+INNER JOIN Orders O    ON CI.cart_id = O.cart_id
+INNER JOIN SubOrder S  ON S.order_id = O.order_id
+                      AND S.business_id = P.business_id
+LEFT JOIN (
+    SELECT business_id, 'Restaurant' AS business_type FROM Restaurant
+    UNION ALL
+    SELECT business_id, 'Pharmacy' FROM Pharmacy
+) T ON B.business_id = T.business_id
+WHERE S.status <> 'Cancelled'
+GROUP BY P.product_id, P.name, B.name, T.business_type
+ORDER BY units_sold DESC, P.product_id ASC;
+GO
+
+
+CREATE VIEW ZoneDeliveryPerformance
+AS 
+SELECT z.zone_id, z.zone_name, count(d.delivery_id) AS delivery_count, AVG(CAST(d.tracking_time AS DECIMAL(10,2))) AS avg_tracking_time
+FROM zone z 
+LEFT JOIN orders o ON z.zone_id = o.zone_id
+LEFT JOIN suborder s ON o.order_id = s.order_id
+LEFT JOIN delivery d ON s.suborder_id = d.suborder_id AND D.delivered_at IS NOT NULL
+GROUP BY z.zone_id, z.zone_name
+GO
+
+
+
 
 
 
