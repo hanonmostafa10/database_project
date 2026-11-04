@@ -1546,8 +1546,7 @@ RETURN
 
         1 + (
             SELECT COUNT(*)
-            FROM
-            (
+            FROM (
                 SELECT
                     R2.rider_id,
                     COUNT(D2.delivery_id) AS delivery_count
@@ -1557,50 +1556,66 @@ RETURN
                 WHERE D2.delivered_at IS NOT NULL
                   AND CAST(D2.delivered_at AS DATE)
                       BETWEEN @from_date AND @to_date
-                GROUP BY R2.rider_id
-            ) X
-
+                GROUP BY R2.rider_id ) X
             WHERE X.delivery_count > T.completed_delivery_count
-
-               OR (
-                    X.delivery_count = T.completed_delivery_count
-                    AND X.rider_id < T.rider_id
-                  )
-
-        ) AS rider_rank,
-
+             OR (X.delivery_count = T.completed_delivery_count AND X.rider_id < T.rider_id) ) AS rider_rank,
+        
         T.rider_id,
         T.rider_name,
         T.completed_delivery_count
 
-    FROM
-    (
+    FROM (
         SELECT
             R.rider_id,
             U.first_name + ' ' + U.last_name AS rider_name,
             COUNT(D.delivery_id) AS completed_delivery_count
-
         FROM Rider R
-
-        INNER JOIN Users U
-            ON R.rider_id = U.user_id
-
-        INNER JOIN Delivery D
-            ON R.rider_id = D.rider_id
-
-        WHERE D.delivered_at IS NOT NULL
-          AND CAST(D.delivered_at AS DATE)
-              BETWEEN @from_date AND @to_date
-
+        INNER JOIN Users U ON R.rider_id = U.user_id
+        INNER JOIN Delivery D ON R.rider_id = D.rider_id
+        WHERE D.delivered_at IS NOT NULL AND CAST(D.delivered_at AS DATE) BETWEEN @from_date AND @to_date
         GROUP BY
             R.rider_id,
             U.first_name,
-            U.last_name
+            U.last_name ) T
 
-    ) T
 
     ORDER BY
         T.completed_delivery_count DESC,
         T.rider_id ASC
+);
+GO
+
+CREATE FUNCTION Daily_Revenue_Report
+(
+    @report_date DATE
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        Z.zone_name,
+        T.business_type,
+        COUNT(S.suborder_id) AS number_of_suborders,
+        SUM(S.total_price) AS gross_sales,
+        SUM(S.delivery_fee) AS delivery_fees,
+        SUM(S.total_price) * 0.10 AS platform_commission
+
+    FROM SubOrder S
+    INNER JOIN Orders O ON S.order_id = O.order_id
+    INNER JOIN Business B ON S.business_id = B.business_id
+    INNER JOIN Zone Z ON O.zone_id = Z.zone_id
+    LEFT JOIN (
+        SELECT business_id, 'Restaurant' AS business_type
+        FROM Restaurant
+
+        UNION ALL
+
+        SELECT business_id, 'Pharmacy' AS business_type
+        FROM Pharmacy ) T  ON B.business_id = T.business_id
+       
+    WHERE S.status <> 'Cancelled' AND CAST(O.order_date AS DATE) = @report_date
+
+    GROUP BY Z.zone_name,T.business_type
 );
 GO
