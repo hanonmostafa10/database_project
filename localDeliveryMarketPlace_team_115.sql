@@ -317,6 +317,9 @@ BEGIN
     DROP FUNCTION IF EXISTS PartnerLoginValidation;
     DROP FUNCTION IF EXISTS RiderLoginValidation;
     DROP FUNCTION IF EXISTS AdminLoginValidation;
+    DROP FUNCTION IF EXISTS ZoneOrderReport;
+    DROP FUNCTION IF EXISTS Daily_Revenue_Report ; 
+    DROP FUNCTION IF EXISTS TopRiders ;
 END;
 GO
 
@@ -1585,7 +1588,7 @@ RETURN
 );
 GO
 
-CREATE FUNCTION Daily_Revenue_Report
+CREATE FUNCTION Daily_Revenue_Report 
 (
     @report_date DATE
 )
