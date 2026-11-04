@@ -1262,3 +1262,345 @@ BEGIN
     RETURN 0;
 END;
 GO
+
+
+CREATE PROCEDURE Blacklist_Customer
+    @customer_id INT,
+    @admin_id INT,
+    @reason VARCHAR(255)
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Customer
+        WHERE customer_id = @customer_id
+    )
+        RETURN -1;
+
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE user_id = @customer_id
+          AND account_status = 'Blacklisted'
+    )
+        RETURN -4;
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+    )
+        RETURN -3;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+          AND role = 'Zone Admin'
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM Admin A
+        INNER JOIN Address AD
+            ON A.zone_id = AD.zone_id
+        WHERE A.admin_id = @admin_id
+          AND AD.customer_id = @customer_id
+    )
+        RETURN -3;
+
+
+
+    IF @reason IS NULL
+        RETURN -1;
+
+
+    UPDATE Users
+    SET account_status = 'Blacklisted'
+    WHERE user_id = @customer_id;
+
+    INSERT INTO Blacklist
+        (customer_id, admin_id, reason)
+    VALUES
+        (@customer_id, @admin_id, @reason);
+
+
+    UPDATE C
+    SET wallet_balance =
+        wallet_balance + (P.amount - P.refunded_amount)
+    FROM Customer C
+    INNER JOIN Cart CT
+        ON C.customer_id = CT.customer_id
+    INNER JOIN Orders O
+        ON CT.cart_id = O.cart_id
+    INNER JOIN Payment P
+        ON O.order_id = P.order_id
+    WHERE C.customer_id = @customer_id
+      AND O.status <> 'Cancelled'
+      AND P.method <> 'Cash'
+
+      AND NOT EXISTS (
+          SELECT 1
+          FROM SubOrder S
+          WHERE S.order_id = O.order_id
+            AND S.status IN ('Picked Up', 'Delivered')
+      );
+    UPDATE P
+    SET refunded_amount = P.amount
+    FROM Payment P
+    INNER JOIN Orders O
+        ON P.order_id = O.order_id
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+    WHERE CT.customer_id = @customer_id
+      AND O.status <> 'Cancelled'
+
+      AND NOT EXISTS (
+          SELECT 1
+          FROM SubOrder S
+          WHERE S.order_id = O.order_id
+            AND S.status IN ('Picked Up', 'Delivered')
+      );
+
+    UPDATE V
+    SET status = 'Unused'
+    FROM Voucher V
+    INNER JOIN Orders O
+        ON V.voucher_id = O.voucher_id
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+    WHERE CT.customer_id = @customer_id
+      AND O.status <> 'Cancelled'
+
+      AND NOT EXISTS (
+          SELECT 1
+          FROM SubOrder S
+          WHERE S.order_id = O.order_id
+            AND S.status IN ('Picked Up', 'Delivered')
+      );
+
+
+
+    UPDATE O
+    SET voucher_id = NULL
+    FROM Orders O
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+    WHERE CT.customer_id = @customer_id
+      AND O.status <> 'Cancelled'
+
+      AND NOT EXISTS (
+          SELECT 1
+          FROM SubOrder S
+          WHERE S.order_id = O.order_id
+            AND S.status IN ('Picked Up', 'Delivered')
+      );
+
+
+    UPDATE S
+    SET status = 'Cancelled'
+    FROM SubOrder S
+    INNER JOIN Orders O
+        ON S.order_id = O.order_id
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+    WHERE CT.customer_id = @customer_id
+      AND O.status <> 'Cancelled'
+
+      AND NOT EXISTS (
+          SELECT 1
+          FROM SubOrder S2
+          WHERE S2.order_id = O.order_id
+            AND S2.status IN ('Picked Up', 'Delivered')
+      );
+
+    UPDATE O
+    SET status = 'Cancelled'
+    FROM Orders O
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+    WHERE CT.customer_id = @customer_id
+      AND O.status <> 'Cancelled'
+
+      AND NOT EXISTS (
+          SELECT 1
+          FROM SubOrder S
+          WHERE S.order_id = O.order_id
+            AND S.status IN ('Picked Up', 'Delivered')
+      );
+
+    DELETE FROM Voucher
+    WHERE customer_id = @customer_id
+      AND status = 'Unused';
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Lift_Customer_Blacklist
+    @customer_id INT,
+    @admin_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Blacklist
+        WHERE customer_id = @customer_id
+    )
+        RETURN -4;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Blacklist
+        WHERE customer_id = @customer_id
+          AND admin_id = @admin_id
+    )
+        RETURN -3;
+
+
+    UPDATE Users
+    SET account_status = 'Active'
+    WHERE user_id = @customer_id;
+
+    DELETE FROM Blacklist
+    WHERE customer_id = @customer_id;
+
+
+    RETURN 0;
+
+END;
+GO
+
+--functions to be dropped:
+
+
+CREATE FUNCTION ZoneOrderReport
+(
+    @zone_id INT,
+    @from_date DATE,
+    @to_date DATE
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        Z.zone_id,
+        Z.zone_name,
+
+        COUNT(O.order_id) AS number_of_orders,
+
+        AVG(O.total_amount) AS avg_order_total,
+
+        SUM(C.commission) AS platform_commission
+
+    FROM Zone Z
+
+    LEFT JOIN Orders O
+        ON Z.zone_id = O.zone_id
+       AND O.status <> 'Cancelled'
+       AND CAST(O.order_date AS DATE)
+            BETWEEN @from_date AND @to_date
+
+    LEFT JOIN
+    (
+        SELECT
+            S.order_id,
+            SUM(S.total_price) * 0.10 AS commission
+        FROM SubOrder S
+        WHERE S.status <> 'Cancelled'
+        GROUP BY S.order_id
+    ) C
+        ON O.order_id = C.order_id
+
+    WHERE Z.zone_id = @zone_id
+      AND @from_date IS NOT NULL
+      AND @to_date IS NOT NULL
+      AND @from_date <= @to_date
+
+    GROUP BY
+        Z.zone_id,
+        Z.zone_name
+);
+GO
+
+
+CREATE FUNCTION TopRiders
+(
+    @from_date DATE,
+    @to_date DATE
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT TOP 5
+
+        1 + (
+            SELECT COUNT(*)
+            FROM
+            (
+                SELECT
+                    R2.rider_id,
+                    COUNT(D2.delivery_id) AS delivery_count
+                FROM Rider R2
+                INNER JOIN Delivery D2
+                    ON R2.rider_id = D2.rider_id
+                WHERE D2.delivered_at IS NOT NULL
+                  AND CAST(D2.delivered_at AS DATE)
+                      BETWEEN @from_date AND @to_date
+                GROUP BY R2.rider_id
+            ) X
+
+            WHERE X.delivery_count > T.completed_delivery_count
+
+               OR (
+                    X.delivery_count = T.completed_delivery_count
+                    AND X.rider_id < T.rider_id
+                  )
+
+        ) AS rider_rank,
+
+        T.rider_id,
+        T.rider_name,
+        T.completed_delivery_count
+
+    FROM
+    (
+        SELECT
+            R.rider_id,
+            U.first_name + ' ' + U.last_name AS rider_name,
+            COUNT(D.delivery_id) AS completed_delivery_count
+
+        FROM Rider R
+
+        INNER JOIN Users U
+            ON R.rider_id = U.user_id
+
+        INNER JOIN Delivery D
+            ON R.rider_id = D.rider_id
+
+        WHERE D.delivered_at IS NOT NULL
+          AND CAST(D.delivered_at AS DATE)
+              BETWEEN @from_date AND @to_date
+
+        GROUP BY
+            R.rider_id,
+            U.first_name,
+            U.last_name
+
+    ) T
+
+    ORDER BY
+        T.completed_delivery_count DESC,
+        T.rider_id ASC
+);
+GO
