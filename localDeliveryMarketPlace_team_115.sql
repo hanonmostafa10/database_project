@@ -759,3 +759,304 @@ CREATE PROCEDURE Create_Admin
     RETURN 0;
 END;
 GO
+
+CREATE PROCEDURE Approve_Business
+    @business_id INT,
+    @admin_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+    )
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Admin A
+        INNER JOIN Business B
+            ON A.zone_id <> B.zone_id
+        WHERE A.admin_id = @admin_id
+          AND B.business_id = @business_id
+          AND A.role = 'Zone Admin'
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+          AND status = 'Pending'
+    )
+        RETURN -4;
+
+    UPDATE Business
+    SET status = 'Active'
+    WHERE business_id = @business_id;
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Reject_Business
+    @business_id INT,
+    @admin_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+    )
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Admin A
+        INNER JOIN Business B
+            ON A.zone_id <> B.zone_id
+        WHERE A.admin_id = @admin_id
+          AND B.business_id = @business_id
+          AND A.role = 'Zone Admin'
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+          AND status = 'Pending'
+    )
+        RETURN -4;
+
+    UPDATE Business
+    SET status = 'Reject'
+    WHERE business_id = @business_id;
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Suspend_Business
+    @business_id INT,
+    @admin_id INT,
+    @reason VARCHAR(255)
+AS
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+          AND status = 'Active'
+    )
+        RETURN -4;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+    )
+        RETURN -3;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Admin A
+        INNER JOIN Business B
+            ON A.zone_id <> B.zone_id
+        WHERE A.admin_id = @admin_id
+          AND B.business_id = @business_id
+          AND A.role = 'Zone Admin'
+    )
+        RETURN -3;
+
+    IF @reason IS NULL
+        RETURN -1;
+
+    UPDATE Business
+    SET status = 'Suspended' , suspension_reason = @reason
+    WHERE business_id = @business_id;
+
+    UPDATE Product
+    SET is_available = 0
+    WHERE business_id = @business_id;
+
+
+
+    --------------------------------------------------
+    -- 3. Restore voucher for orders that will become fully cancelled
+    --------------------------------------------------
+
+    UPDATE V
+    SET status = 'Unused'
+    FROM Voucher V
+    INNER JOIN Orders O
+        ON V.voucher_id = O.voucher_id
+    WHERE EXISTS (
+        SELECT 1
+        FROM SubOrder S
+        WHERE S.order_id = O.order_id
+          AND S.business_id = @business_id
+          AND S.status IN ('Placed', 'Assigned')
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM SubOrder S
+        WHERE S.order_id = O.order_id
+          AND S.business_id <> @business_id
+          AND S.status <> 'Cancelled'
+    );
+
+
+
+    --------------------------------------------------
+    -- 4. Add refund to wallet if payment is not Cash
+    --------------------------------------------------
+
+    UPDATE C
+    SET wallet_balance = wallet_balance + R.total_refund
+    FROM Customer C
+    INNER JOIN
+    (
+        SELECT
+            CT.customer_id,
+            SUM(
+                CASE
+                    WHEN P.refunded_amount + X.refund <= P.amount
+                        THEN X.refund
+                    ELSE P.amount - P.refunded_amount
+                END
+            ) AS total_refund
+        FROM Payment P
+        INNER JOIN Orders O
+            ON P.order_id = O.order_id
+        INNER JOIN Cart CT
+            ON O.cart_id = CT.cart_id
+        INNER JOIN
+        (
+            SELECT
+                S.order_id,
+                SUM(S.total_price + S.delivery_fee) AS refund
+            FROM SubOrder S
+            WHERE S.business_id = @business_id
+              AND S.status IN ('Placed', 'Assigned')
+            GROUP BY S.order_id
+        ) X
+            ON O.order_id = X.order_id
+        WHERE P.method <> 'Cash'
+        GROUP BY CT.customer_id
+    ) R
+        ON C.customer_id = R.customer_id;
+
+
+
+    --------------------------------------------------
+    -- 5. Record the refund on the Payment
+    --------------------------------------------------
+
+    UPDATE P
+    SET refunded_amount =
+        refunded_amount +
+        CASE
+            WHEN refunded_amount + X.refund <= P.amount
+                THEN X.refund
+            ELSE P.amount - refunded_amount
+        END
+    FROM Payment P
+    INNER JOIN
+    (
+        SELECT
+            S.order_id,
+            SUM(S.total_price + S.delivery_fee) AS refund
+        FROM SubOrder S
+        WHERE S.business_id = @business_id
+          AND S.status IN ('Placed', 'Assigned')
+        GROUP BY S.order_id
+    ) X
+        ON P.order_id = X.order_id;
+
+
+
+    --------------------------------------------------
+    -- 6. Cancel the SubOrders
+    --------------------------------------------------
+
+    UPDATE SubOrder
+    SET status = 'Cancelled'
+    WHERE business_id = @business_id
+      AND status IN ('Placed', 'Assigned');
+
+
+
+    --------------------------------------------------
+    -- 7. Recompute affected Order statuses (BR-11)
+    --------------------------------------------------
+
+    UPDATE O
+    SET status =
+        CASE
+
+            -- all SubOrders cancelled
+            WHEN NOT EXISTS (
+                SELECT 1
+                FROM SubOrder S
+                WHERE S.order_id = O.order_id
+                  AND S.status <> 'Cancelled'
+            )
+            THEN 'Cancelled'
+
+            -- all non-cancelled SubOrders delivered
+            WHEN NOT EXISTS (
+                SELECT 1
+                FROM SubOrder S
+                WHERE S.order_id = O.order_id
+                  AND S.status NOT IN ('Cancelled', 'Delivered')
+            )
+            THEN 'Delivered'
+
+            -- at least one picked up or delivered
+            WHEN EXISTS (
+                SELECT 1
+                FROM SubOrder S
+                WHERE S.order_id = O.order_id
+                  AND S.status IN ('Picked Up', 'Delivered')
+            )
+            THEN 'In Progress'
+
+            ELSE 'Placed'
+
+        END
+    FROM Orders O
+    WHERE EXISTS (
+        SELECT 1
+        FROM SubOrder S
+        WHERE S.order_id = O.order_id
+          AND S.business_id = @business_id
+    );
+
+
+    RETURN 0;
+
+END;
+GO
