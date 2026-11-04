@@ -852,6 +852,8 @@ BEGIN
 END;
 GO
 
+
+
 CREATE PROCEDURE Suspend_Business
     @business_id INT,
     @admin_id INT,
@@ -904,10 +906,6 @@ BEGIN
 
 
 
-    --------------------------------------------------
-    -- 3. Restore voucher for orders that will become fully cancelled
-    --------------------------------------------------
-
     UPDATE V
     SET status = 'Unused'
     FROM Voucher V
@@ -929,10 +927,6 @@ BEGIN
     );
 
 
-
-    --------------------------------------------------
-    -- 4. Add refund to wallet if payment is not Cash
-    --------------------------------------------------
 
     UPDATE C
     SET wallet_balance = wallet_balance + R.total_refund
@@ -971,10 +965,6 @@ BEGIN
 
 
 
-    --------------------------------------------------
-    -- 5. Record the refund on the Payment
-    --------------------------------------------------
-
     UPDATE P
     SET refunded_amount =
         refunded_amount +
@@ -997,11 +987,6 @@ BEGIN
         ON P.order_id = X.order_id;
 
 
-
-    --------------------------------------------------
-    -- 6. Cancel the SubOrders
-    --------------------------------------------------
-
     UPDATE SubOrder
     SET status = 'Cancelled'
     WHERE business_id = @business_id
@@ -1009,15 +994,9 @@ BEGIN
 
 
 
-    --------------------------------------------------
-    -- 7. Recompute affected Order statuses (BR-11)
-    --------------------------------------------------
-
     UPDATE O
     SET status =
         CASE
-
-            -- all SubOrders cancelled
             WHEN NOT EXISTS (
                 SELECT 1
                 FROM SubOrder S
@@ -1026,7 +1005,6 @@ BEGIN
             )
             THEN 'Cancelled'
 
-            -- all non-cancelled SubOrders delivered
             WHEN NOT EXISTS (
                 SELECT 1
                 FROM SubOrder S
@@ -1035,7 +1013,6 @@ BEGIN
             )
             THEN 'Delivered'
 
-            -- at least one picked up or delivered
             WHEN EXISTS (
                 SELECT 1
                 FROM SubOrder S
