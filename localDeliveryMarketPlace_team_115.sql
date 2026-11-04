@@ -310,9 +310,13 @@ BEGIN
 
     DROP PROCEDURE IF EXISTS createAllTables;
     DROP PROCEDURE IF EXISTS dropAllTables;
-    DROP PROCEDURE IF EXISTS clearAllTables;
+    DROP PROCEDURE IF EXISTS clearAllTables
+    -- to be returedn to later lms nekteb el functions 
     -- Functions
-    -- DROP FUNCTION IF EXISTS functionName;
+    DROP FUNCTION IF EXISTS CustomerLoginValidation;
+    DROP FUNCTION IF EXISTS PartnerLoginValidation;
+    DROP FUNCTION IF EXISTS RiderLoginValidation;
+    DROP FUNCTION IF EXISTS AdminLoginValidation;
 END;
 GO
 
@@ -450,4 +454,308 @@ GO
 
 
 
+CREATE PROCEDURE Customer_Register
+    @first_name VARCHAR(30),
+    @middle_name VARCHAR(30),
+    @last_name VARCHAR(30),
+    @username VARCHAR(30),
+    @password VARCHAR(30),
+    @email VARCHAR(100),
+    @phone CHAR(11),
+    @dob DATE
+AS
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE username = @username OR email = @email)
+        RETURN -2;
 
+    IF EXISTS (
+        SELECT 1
+        FROM User_Phone
+        WHERE phone = @phone)
+        RETURN -2;
+
+    INSERT INTO Users(first_name, middle_name, last_name, username, password, email, dob)
+    VALUES (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
+    
+    DECLARE @user_id INT;
+    SET @user_id = SCOPE_IDENTITY();
+
+    INSERT INTO Customer (customer_id, wallet_balance)
+    VALUES (@user_id, 0);
+
+    INSERT INTO User_Phone (user_id, phone)
+    VALUES (@user_id, @phone);
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Partner_Register
+    @first_name VARCHAR(30),
+    @middle_name VARCHAR(30),
+    @last_name VARCHAR(30),
+    @username VARCHAR(30),
+    @password VARCHAR(30),
+    @email VARCHAR(100),
+    @phone CHAR(11),
+    @dob DATE
+AS
+BEGIN
+IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE username = @username OR email = @email)
+        RETURN -2;
+
+    IF EXISTS (
+        SELECT 1
+        FROM User_Phone
+        WHERE phone = @phone)
+        RETURN -2;
+
+    INSERT INTO Users(first_name, middle_name, last_name, username, password, email, dob)
+    VALUES (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
+    
+    DECLARE @user_id INT;
+    SET @user_id = SCOPE_IDENTITY();
+
+    INSERT INTO Partner (partner_id)
+    VALUES (@user_id);
+
+    INSERT INTO User_Phone (user_id, phone)
+    VALUES (@user_id, @phone);
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Rider_Register 
+    @first_name VARCHAR(30),
+    @middle_name VARCHAR(30),
+    @last_name VARCHAR(30),
+    @username VARCHAR(30),
+    @password VARCHAR(30),
+    @email VARCHAR(100),
+    @phone CHAR(11),
+    @dob DATE,
+    @vehicle_type VARCHAR(30),
+    @plate_no VARCHAR(15), 
+    @license_no VARCHAR(20), 
+    @zone_id INT
+    AS 
+    BEGIN 
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE username = @username OR email = @email)
+        RETURN -2;
+
+    IF EXISTS (
+        SELECT 1
+        FROM User_Phone
+        WHERE phone = @phone)
+        RETURN -2;
+
+    IF EXISTS (
+        SELECT 1 
+        FROM Rider
+        WHERE plate_no = @plate_no OR License_no = @license_no)
+        RETURN -2;
+
+    IF  NOT EXISTS (
+        SELECT 1 
+        FROM Zone 
+        WHERE zone_id = @zone_id)
+        RETURN -1;
+
+    INSERT INTO Users(first_name, middle_name, last_name, username, password, email, dob)
+    VALUES (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
+    
+    DECLARE @user_id INT;
+    SET @user_id = SCOPE_IDENTITY();
+
+    INSERT INTO Rider (rider_id, vehicle_type, plate_no, license_no, is_available, zone_id)
+    VALUES (@user_id, @vehicle_type, @plate_no, @license_no, 1, @zone_id);
+
+    INSERT INTO User_Phone (user_id, phone)
+    VALUES (@user_id, @phone);
+
+
+    RETURN 0;
+END;
+GO
+
+CREATE FUNCTION CustomerLoginValidation
+    (@username VARCHAR(30),@password VARCHAR(30))
+    RETURNS BIT
+    AS
+    BEGIN
+    DECLARE @success BIT = 0;
+    IF EXISTS ( 
+        SELECT 1 
+        FROM users U
+        INNER JOIN Customer C ON U.user_id = C.Customer_id 
+        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
+    SET @success = 1;
+    RETURN @success;
+    END;
+    GO
+
+    CREATE FUNCTION PartnerLoginValidation
+    (@username VARCHAR(30),@password VARCHAR(30))
+    RETURNS BIT
+    AS
+    BEGIN
+    DECLARE @success BIT = 0;
+    IF EXISTS ( 
+        SELECT 1 
+        FROM users U
+        INNER JOIN partner P ON U.user_id = P.partner_id 
+        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
+    SET @success = 1;
+    RETURN @success;
+    END;
+    GO
+
+    CREATE FUNCTION RiderLoginValidation
+    (@username VARCHAR(30),@password VARCHAR(30))
+    RETURNS BIT
+    AS
+    BEGIN
+    DECLARE @success BIT = 0;
+    IF EXISTS ( 
+        SELECT 1 
+        FROM users U
+        INNER JOIN Rider R ON U.user_id = R.Rider_id 
+        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
+    SET @success = 1;
+    RETURN @success;
+    END;
+    GO
+
+    CREATE FUNCTION AdminLoginValidation
+    (@username VARCHAR(30),@password VARCHAR(30))
+    RETURNS BIT
+    AS
+    BEGIN
+    DECLARE @success BIT = 0;
+    IF EXISTS ( 
+        SELECT 1 
+        FROM users U
+        INNER JOIN Admin A ON U.user_id = A.Admin_id 
+        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
+    SET @success = 1;
+    RETURN @success;
+    END;
+    GO
+
+CREATE PROCEDURE Change_Password
+    @user_id INT,
+    @old_password VARCHAR(30),
+    @new_password VARCHAR(30),
+    @new_password_repeat VARCHAR(30),
+    @success BIT OUTPUT
+AS
+BEGIN
+
+    SET @success = 0;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE user_id = @user_id
+          AND password = @old_password
+    )
+    AND @new_password = @new_password_repeat
+    AND @new_password <> @old_password
+    BEGIN
+        UPDATE Users
+        SET password = @new_password
+        WHERE user_id = @user_id;
+
+        SET @success = 1;
+        RETURN 0;
+    END
+    RETURN -1;
+END;
+GO
+
+CREATE PROCEDURE Create_Admin
+    @first_name VARCHAR(30),
+    @middle_name VARCHAR(30),
+    @last_name VARCHAR(30),
+    @username VARCHAR(30),
+    @password VARCHAR(30),
+    @email VARCHAR(100),
+    @phone CHAR(11),
+    @dob DATE,
+    @role VARCHAR(20),
+    @zone_id INT,
+    @super_admin_id INT
+    AS
+    BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @super_admin_id
+          AND role = 'Super Admin'
+    )
+        RETURN -3;
+
+    IF @role IS NULL
+        SET @role = 'Super Admin';
+
+    IF @first_name IS NULL OR @last_name IS NULL OR @username IS NULL
+       OR @password IS NULL OR @email IS NULL OR @phone IS NULL
+        RETURN -1;
+
+    IF @role <> 'Super Admin' AND @role <> 'Zone Admin'
+        RETURN -1;
+
+    IF @role = 'Super Admin' AND @zone_id IS NOT NULL
+        RETURN -1;
+
+    IF @role = 'Zone Admin' AND NOT EXISTS (
+        SELECT 1
+        FROM Zone
+        WHERE zone_id = @zone_id
+    )
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE username = @username
+           OR email = @email
+    )
+        RETURN -2;
+
+    IF EXISTS (
+        SELECT 1
+        FROM User_Phone
+        WHERE phone = @phone
+    )
+        RETURN -2;
+
+    INSERT INTO Users
+        (first_name, middle_name, last_name,
+         username, password, email, dob)
+    VALUES
+        (@first_name, @middle_name, @last_name,
+         @username, @password, @email, @dob);
+
+    DECLARE @user_id INT;
+    SET @user_id = SCOPE_IDENTITY();
+
+    INSERT INTO Admin (admin_id, role, zone_id)
+    VALUES (@user_id, @role, @zone_id);
+
+    INSERT INTO User_Phone (user_id, phone)
+    VALUES (@user_id, @phone);
+
+    RETURN 0;
+END;
+GO
