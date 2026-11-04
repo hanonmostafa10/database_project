@@ -1032,8 +1032,233 @@ BEGIN
           AND S.business_id = @business_id
     );
 
-
     RETURN 0;
 
+END;
+GO
+
+CREATE PROCEDURE Reinstate_Business
+    @business_id INT,
+    @super_admin_id INT
+AS
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @super_admin_id
+          AND role = 'Super Admin'
+    )
+        RETURN -3;
+ 
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+          AND status = 'Suspended'
+    )
+        RETURN -4;
+
+    UPDATE Business
+    SET status = 'Active',
+        suspension_reason = NULL
+    WHERE business_id = @business_id;
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Create_Zone
+    @zone_name VARCHAR(50),
+    @delivery_fee DECIMAL(10,2),
+    @super_admin_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @super_admin_id
+          AND role = 'Super Admin'
+    )
+        RETURN -3;
+
+    IF @zone_name IS NULL OR @delivery_fee IS NULL OR @delivery_fee < 0
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Zone
+        WHERE zone_name = @zone_name
+    )
+        RETURN -2;
+
+    INSERT INTO Zone (zone_name, delivery_fee)
+    VALUES (@zone_name, @delivery_fee);
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Update_Zone_Fee
+    @zone_id INT,
+    @new_fee DECIMAL(10,2),
+    @super_admin_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @super_admin_id
+          AND role = 'Super Admin'
+    )
+        RETURN -3;
+
+    IF @zone_id IS NULL OR @new_fee IS NULL OR @new_fee < 0
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Zone
+        WHERE zone_id = @zone_id
+    )
+        RETURN -1;
+
+    UPDATE Zone
+    SET delivery_fee = @new_fee
+    WHERE zone_id = @zone_id;
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Assign_Admin_Zone
+    @admin_id INT,
+    @zone_id INT,
+    @super_admin_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @super_admin_id
+          AND role = 'Super Admin'
+    )
+        RETURN -3;
+
+    IF @admin_id IS NULL OR @zone_id IS NULL
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+          AND role = 'Zone Admin'
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Zone
+        WHERE zone_id = @zone_id
+    )
+        RETURN -1;
+
+    UPDATE Admin
+    SET zone_id = @zone_id
+    WHERE admin_id = @admin_id;
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Issue_Voucher
+    @customer_id INT,
+    @promo_code VARCHAR(30),
+    @is_percentage BIT,
+    @amount DECIMAL(10,2),
+    @expiry_date DATE,
+    @admin_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+    )
+        RETURN -3;
+
+    IF @customer_id IS NULL OR @promo_code IS NULL OR @is_percentage IS NULL
+       OR @amount IS NULL OR @expiry_date IS NULL
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Customer
+        WHERE customer_id = @customer_id
+    )
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE user_id = @customer_id
+          AND account_status = 'Blacklisted'
+    )
+        RETURN -3;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Admin
+        WHERE admin_id = @admin_id
+          AND role = 'Zone Admin'
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM Address AD
+        INNER JOIN Admin A
+            ON AD.zone_id = A.zone_id
+        WHERE A.admin_id = @admin_id
+          AND AD.customer_id = @customer_id
+    )
+        RETURN -3;
+
+    IF @amount <= 0
+        RETURN -1;
+
+    IF @is_percentage = 1 AND @amount > 100
+        RETURN -1;
+
+    IF @expiry_date < CAST(GETDATE() AS DATE)
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Voucher
+        WHERE promo_code = @promo_code
+    )
+        RETURN -2;
+
+    INSERT INTO Voucher
+        (promo_code, is_percentage, amount, expiry_date, customer_id)
+    VALUES
+        (@promo_code, @is_percentage, @amount, @expiry_date, @customer_id);
+
+    RETURN 0;
 END;
 GO
