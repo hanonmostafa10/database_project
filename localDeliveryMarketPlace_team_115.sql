@@ -12,15 +12,15 @@ zone_name VARCHAR(50) NOT NULL UNIQUE ,
 delivery_fee DECIMAL(10,2) NOT NULL CHECK(delivery_fee>=0));
 
 CREATE TABLE Users (
-user_id INT IDENTITY(1,10) PRIMARY KEY ,
-fisrt_name VARCHAR(30) NOT NULL ,
+user_id INT IDENTITY(1,1) PRIMARY KEY ,
+first_name VARCHAR(30) NOT NULL ,
 middle_name VARCHAR(30),
 last_name VARCHAR(30) NOT NULL,
-username VARCHA(30) NOT NULL UNIQUE,
+username VARCHAR(30) NOT NULL UNIQUE,
 password  VARCHAR(30) NOT NULL ,
 email VARCHAR(100) NOT NULL UNIQUE ,
 dob DATE ,
-aaccount_status VARCHAR(20) NOT NULL DEFAULT 'Active'
+account_status VARCHAR(20) NOT NULL DEFAULT 'Active'
     CHECK (account_status IN ('Active', 'Blacklisted')))
 
 CREATE TABLE User_Phone (
@@ -253,6 +253,21 @@ CREATE TABLE Payment (
     FOREIGN KEY (card_id) REFERENCES Card(card_id)
 );
 
+CREATE TABLE Delivery (
+    delivery_id INT IDENTITY(1,1) PRIMARY KEY,
+    assigned_at DATETIME NOT NULL,
+    picked_up_at DATETIME,
+    delivered_at DATETIME,
+    tracking_time INT,
+    rider_rating INT
+        CHECK (rider_rating BETWEEN 1 AND 5),
+    suborder_id INT NOT NULL UNIQUE,
+    rider_id INT NOT NULL,
+
+    FOREIGN KEY (suborder_id) REFERENCES SubOrder(suborder_id),
+    FOREIGN KEY (rider_id) REFERENCES Rider(rider_id)
+);
+
 CREATE TABLE Feedback (
     feedback_id INT IDENTITY(1,1) PRIMARY KEY,
     headline VARCHAR(100) NOT NULL,
@@ -339,19 +354,20 @@ AS
 SELECT
     B.business_id,
     B.name AS business_name,
-    B.business_type,
+    T.business_type,
     Z.zone_name,
-    U.fisrt_name + ' ' + U.last_name AS partner_name,
+    U.first_name + ' ' + U.last_name AS partner_name,
     B.status,
     B.opening_hour,
     B.closing_hour
 FROM Business B
-INNER JOIN Partner P
-    ON B.partner_id = P.partner_id
-INNER JOIN USRERS U
-    ON P.partner_id = U.user_id
-INNER JOIN Zone Z
-    ON B.zone_id = Z.zone_id;
+INNER JOIN Users U ON B.partner_id = U.user_id
+INNER JOIN Zone Z  ON B.zone_id = Z.zone_id
+LEFT JOIN (
+    SELECT business_id, 'Restaurant' AS business_type FROM Restaurant
+    UNION ALL
+    SELECT business_id, 'Pharmacy' FROM Pharmacy
+) T ON B.business_id = T.business_id;
 GO
 
 CREATE VIEW BusinessesPerZone 
@@ -364,7 +380,7 @@ GO
 
 CREATE VIEW BusinessRatingsSummary
 AS
-SELECT b.business_id, b.name AS business_name, AVG(CAST(f.rating AS DECIMAL(3,2))) AS avg_rating, COUNT(f.feedbak_id) AS ratings_count
+SELECT b.business_id, b.name AS business_name, AVG(CAST(f.rating AS DECIMAL(3,2))) AS avg_rating, COUNT(f.feedback_id) AS ratings_count
 FROM Business B
 LEFT JOIN SubOrder S
     ON B.business_id = S.business_id
@@ -412,7 +428,7 @@ CREATE VIEW RiderPerformanceSummary
 AS
 SELECT  R.rider_id,
     u.first_name + ' ' + u.last_name AS rider_name,
-    Z.zone_name, COUNT(d.delivery_id) AS completed_deliveries,
+    Z.zone_name, COUNT(S.suborder_id) AS completed_deliveries,
     AVG(CAST(D.rider_rating AS DECIMAL(3,2))) AS avg_rating
     FROM Rider R
     INNER JOIN Users u ON R.rider_id = u.user_id
@@ -849,7 +865,7 @@ BEGIN
         RETURN -4;
 
     UPDATE Business
-    SET status = 'Reject'
+    SET status = 'Rejected'
     WHERE business_id = @business_id;
     RETURN 0;
 END;
@@ -1332,26 +1348,28 @@ BEGIN
         (@customer_id, @admin_id, @reason);
 
 
-    UPDATE C
-    SET wallet_balance =
-        wallet_balance + (P.amount - P.refunded_amount)
-    FROM Customer C
-    INNER JOIN Cart CT
-        ON C.customer_id = CT.customer_id
-    INNER JOIN Orders O
-        ON CT.cart_id = O.cart_id
-    INNER JOIN Payment P
-        ON O.order_id = P.order_id
-    WHERE C.customer_id = @customer_id
-      AND O.status <> 'Cancelled'
-      AND P.method <> 'Cash'
+    DECLARE @total_refund DECIMAL(10,2);
 
-      AND NOT EXISTS (
-          SELECT 1
-          FROM SubOrder S
-          WHERE S.order_id = O.order_id
-            AND S.status IN ('Picked Up', 'Delivered')
-      );
+SELECT @total_refund = SUM(P.amount - P.refunded_amount)
+FROM Cart CT
+INNER JOIN Orders O  ON CT.cart_id = O.cart_id
+INNER JOIN Payment P ON O.order_id = P.order_id
+WHERE CT.customer_id = @customer_id
+  AND O.status <> 'Cancelled'
+  AND P.method <> 'Cash'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM SubOrder S
+      WHERE S.order_id = O.order_id
+        AND S.status IN ('Picked Up', 'Delivered')
+  );
+
+IF @total_refund > 0
+    UPDATE Customer
+    SET wallet_balance = wallet_balance + @total_refund
+    WHERE customer_id = @customer_id;
+
+
     UPDATE P
     SET refunded_amount = P.amount
     FROM Payment P
@@ -1621,4 +1639,1383 @@ RETURN
 
     GROUP BY Z.zone_name,T.business_type
 );
+GO
+
+CREATE PROCEDURE Register_Business
+    @partner_id INT,
+    @name VARCHAR(100),
+    @description VARCHAR(255),
+    @link_website VARCHAR(255),
+    @zone_id INT,
+    @opening_hour TIME,
+    @closing_hour TIME,
+    @expected_delivery_time INT,
+    @phone CHAR(11),
+    @business_type VARCHAR(20),
+    @cuisine_type VARCHAR(50),
+    @food_category VARCHAR(50),
+    @pharmacy_type VARCHAR(50)
+AS
+BEGIN
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Partner
+        WHERE partner_id = @partner_id
+    )
+        RETURN -3;
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Zone
+        WHERE zone_id = @zone_id
+    )
+        RETURN -1;
+
+
+    IF @expected_delivery_time <= 0
+        RETURN -1;
+
+
+    IF @business_type NOT IN ('Restaurant', 'Pharmacy')
+        RETURN -1;
+
+
+    IF @business_type = 'Restaurant'
+       AND (
+            @cuisine_type IS NULL
+            OR @food_category IS NULL
+            OR @pharmacy_type IS NOT NULL
+       )
+        RETURN -1;
+
+
+    IF @business_type = 'Pharmacy'
+       AND (
+            @pharmacy_type IS NULL
+            OR @cuisine_type IS NOT NULL
+            OR @food_category IS NOT NULL
+       )
+        RETURN -1;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE partner_id = @partner_id
+          AND status <> 'Rejected'
+    )
+        RETURN -2;
+
+   
+   DECLARE @business_id INT;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE partner_id = @partner_id
+          AND status = 'Rejected'
+    )
+    BEGIN
+
+        SELECT @business_id = business_id
+        FROM Business
+        WHERE partner_id = @partner_id;
+
+
+        UPDATE Business
+        SET name = @name,
+            description = @description,
+            link_website = @link_website,
+            opening_hour = @opening_hour,
+            closing_hour = @closing_hour,
+            expected_delivery_time = @expected_delivery_time,
+            status = 'Pending',
+            suspension_reason = NULL,
+            zone_id = @zone_id
+        WHERE business_id = @business_id;
+
+
+        DELETE FROM Business_Phone
+        WHERE business_id = @business_id;
+
+        INSERT INTO Business_Phone
+            (business_id, phone)
+        VALUES
+            (@business_id, @phone);
+
+
+        DELETE FROM Restaurant
+        WHERE business_id = @business_id;
+
+        DELETE FROM Pharmacy
+        WHERE business_id = @business_id;
+
+
+        IF @business_type = 'Restaurant'
+        BEGIN
+            INSERT INTO Restaurant
+                (business_id, cuisine_type, food_category)
+            VALUES
+                (@business_id, @cuisine_type, @food_category);
+        END
+
+        ELSE
+        BEGIN
+            INSERT INTO Pharmacy
+                (business_id, pharmacy_type)
+            VALUES
+                (@business_id, @pharmacy_type);
+        END
+
+    END
+
+
+
+
+    ELSE
+    BEGIN
+
+        INSERT INTO Business
+            (
+                name,
+                description,
+                link_website,
+                opening_hour,
+                closing_hour,
+                expected_delivery_time,
+                partner_id,
+                zone_id
+            )
+        VALUES
+            (
+                @name,
+                @description,
+                @link_website,
+                @opening_hour,
+                @closing_hour,
+                @expected_delivery_time,
+                @partner_id,
+                @zone_id
+            );
+
+
+        SET @business_id = SCOPE_IDENTITY();
+
+
+        INSERT INTO Business_Phone
+            (business_id, phone)
+        VALUES
+            (@business_id, @phone);
+
+
+        IF @business_type = 'Restaurant'
+        BEGIN
+
+            INSERT INTO Restaurant
+                (business_id, cuisine_type, food_category)
+            VALUES
+                (@business_id, @cuisine_type, @food_category);
+
+        END
+
+        ELSE
+        BEGIN
+
+            INSERT INTO Pharmacy
+                (business_id, pharmacy_type)
+            VALUES
+                (@business_id, @pharmacy_type);
+
+        END
+
+    END;
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Update_Business_Info
+    @business_id INT,
+    @opening_hour TIME,
+    @closing_hour TIME,
+    @phone CHAR(11),
+    @link_website VARCHAR(255)
+AS
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+    )
+        RETURN -1;
+
+
+    UPDATE Business
+    SET opening_hour = @opening_hour,
+        closing_hour = @closing_hour,
+        link_website = @link_website
+    WHERE business_id = @business_id;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Business_Phone
+        WHERE business_id = @business_id
+          AND phone = @phone
+    )
+        RETURN -2;
+
+    INSERT INTO Business_Phone
+        (business_id, phone)
+    VALUES
+        (@business_id, @phone);
+
+
+    RETURN 0;
+
+END;
+GO
+
+CREATE PROCEDURE Upsert_Product
+    @business_id INT,
+    @product_id INT,
+    @name VARCHAR(100),
+    @description VARCHAR(255),
+    @category VARCHAR(50),
+    @price DECIMAL(10,2),
+    @is_available BIT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+    )
+        RETURN -1;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM Business
+        WHERE business_id = @business_id
+          AND status = 'Suspended'
+    )
+        RETURN -4;
+
+    IF @price <= 0
+        RETURN -1;
+
+
+    IF @product_id IS NULL
+    BEGIN
+
+        INSERT INTO Product
+            (
+                name,
+                description,
+                category,
+                price,
+                is_available,
+                business_id
+            )
+        VALUES
+            (
+                @name,
+                @description,
+                @category,
+                @price,
+                @is_available,
+                @business_id
+            );
+
+    END
+
+
+
+    ELSE
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Product
+            WHERE product_id = @product_id
+        )
+            RETURN -1;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Product
+            WHERE product_id = @product_id
+              AND business_id = @business_id
+        )
+            RETURN -3;
+
+
+        UPDATE Product
+        SET name = @name,
+            description = @description,
+            category = @category,
+            price = @price,
+            is_available = @is_available
+        WHERE product_id = @product_id;
+
+    END;
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Toggle_Product_Status
+    @product_id INT,
+    @is_available BIT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Product
+        WHERE product_id = @product_id
+    )
+        RETURN -1;
+
+
+    IF @is_available = 1
+       AND EXISTS (
+            SELECT 1
+            FROM Product P
+            INNER JOIN Business B
+                ON P.business_id = B.business_id
+            WHERE P.product_id = @product_id
+              AND B.status = 'Suspended'
+       )
+        RETURN -4;
+
+    UPDATE Product
+    SET is_available = @is_available
+    WHERE product_id = @product_id;
+
+
+    RETURN 0;
+
+END;
+GO
+
+CREATE PROCEDURE Set_Product_Promotion
+    @product_id INT,
+    @discount_amount DECIMAL(10,2)
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Product
+        WHERE product_id = @product_id
+    )
+        RETURN -1;
+
+
+    IF @discount_amount < 0
+        RETURN -1;
+   
+    IF EXISTS (
+        SELECT 1
+        FROM Product
+        WHERE product_id = @product_id
+          AND @discount_amount > price * 0.5
+    )
+        RETURN -1;
+
+
+    UPDATE Product
+    SET discount_amount = @discount_amount
+    WHERE product_id = @product_id;
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+--to be droped :
+CREATE FUNCTION BusinessSalesReport
+(
+    @business_id INT,
+    @from_date DATE,
+    @to_date DATE
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        P.product_id,
+        P.name AS product_name,
+        SUM(CI.quantity) AS units_sold,
+        SUM(CI.quantity * CI.unit_price) AS revenue_per_product
+
+    FROM Product P
+
+    INNER JOIN CartItem CI
+        ON P.product_id = CI.product_id
+
+    INNER JOIN Orders O
+        ON CI.cart_id = O.cart_id
+
+    INNER JOIN SubOrder S
+        ON O.order_id = S.order_id
+       AND S.business_id = P.business_id
+
+    WHERE P.business_id = @business_id
+      AND S.status <> 'Cancelled'
+      AND CAST(O.order_date AS DATE)
+          BETWEEN @from_date AND @to_date
+
+    GROUP BY
+        P.product_id,
+        P.name
+);
+GO
+
+
+CREATE FUNCTION BusinessFeedbackOverview
+(
+    @business_id INT
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        AVG(CAST(F.rating AS DECIMAL(4,2))) AS avg_rating,
+        COUNT(F.feedback_id) AS number_of_feedbacks,
+
+        SUM(CASE WHEN F.rating = 5 THEN 1 ELSE 0 END) AS five_star,
+        SUM(CASE WHEN F.rating = 4 THEN 1 ELSE 0 END) AS four_star,
+        SUM(CASE WHEN F.rating = 3 THEN 1 ELSE 0 END) AS three_star,
+        SUM(CASE WHEN F.rating = 2 THEN 1 ELSE 0 END) AS two_star,
+        SUM(CASE WHEN F.rating = 1 THEN 1 ELSE 0 END) AS one_star
+
+    FROM SubOrder S
+
+    LEFT JOIN Feedback F
+        ON S.suborder_id = F.suborder_id
+
+    WHERE S.business_id = @business_id
+);
+GO
+
+CREATE PROCEDURE Add_Customer_Address
+    @customer_id INT,
+    @description VARCHAR(150),
+    @zone_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Customer
+        WHERE customer_id = @customer_id
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Zone
+        WHERE zone_id = @zone_id
+    )
+        RETURN -1;
+
+    UPDATE Address
+    SET is_active = 0
+    WHERE customer_id = @customer_id;
+
+
+    INSERT INTO Address
+        (description, is_active, customer_id, zone_id)
+    VALUES
+        (@description, 1, @customer_id, @zone_id);
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Update_Delete_Customer_Address
+    @customer_id INT,
+    @address_id INT,
+    @description VARCHAR(150),
+    @zone_id INT,
+    @action VARCHAR(20)
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Address
+        WHERE address_id = @address_id
+          AND customer_id = @customer_id
+    )
+        RETURN -3;
+
+
+    -- reject if this address belongs to a Placed or In Progress order
+    IF EXISTS (
+        SELECT 1
+        FROM Cart C
+        INNER JOIN Orders O
+            ON C.cart_id = O.cart_id
+        WHERE C.address_id = @address_id
+          AND O.status IN ('Placed', 'In Progress')
+    )
+        RETURN -4;
+
+
+    IF @action = 'Update'
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Zone
+            WHERE zone_id = @zone_id
+        )
+            RETURN -1;
+
+
+        UPDATE Address
+        SET description = @description,
+            zone_id = @zone_id
+        WHERE address_id = @address_id;
+
+    END
+
+
+    ELSE IF @action = 'Delete'
+    BEGIN
+
+        IF EXISTS (
+            SELECT 1
+            FROM Cart
+            WHERE address_id = @address_id
+        )
+            RETURN -3;
+
+
+        DELETE FROM Address
+        WHERE address_id = @address_id;
+
+    END
+
+
+    ELSE
+        RETURN -1;
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Change_Active_Address
+    @customer_id INT,
+    @new_address_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Address
+        WHERE address_id = @new_address_id
+          AND customer_id = @customer_id
+    )
+        RETURN -3;
+
+
+    UPDATE Address
+    SET is_active = 0
+    WHERE customer_id = @customer_id;
+
+
+    UPDATE Address
+    SET is_active = 1
+    WHERE address_id = @new_address_id;
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Add_Card
+    @customer_id INT,
+    @card_no CHAR(16),
+    @card_holder_name VARCHAR(100),
+    @expiration_date DATE
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Customer
+        WHERE customer_id = @customer_id
+    )
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Card
+        WHERE customer_id = @customer_id
+          AND card_no = @card_no
+    )
+        RETURN -2;
+
+
+    INSERT INTO Card
+        (
+            card_no,
+            card_holder_name,
+            expiration_date,
+            customer_id
+        )
+    VALUES
+        (
+            @card_no,
+            @card_holder_name,
+            @expiration_date,
+            @customer_id
+        );
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Create_Cart
+    @customer_id INT
+AS
+BEGIN
+
+    DECLARE @address_id INT;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Customer
+        WHERE customer_id = @customer_id
+    )
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Users U
+        WHERE U.user_id = @customer_id
+          AND U.account_status = 'Blacklisted'
+    )
+        RETURN -3;
+
+
+    SELECT @address_id = address_id
+    FROM Address
+    WHERE customer_id = @customer_id
+      AND is_active = 1;
+
+
+    IF @address_id IS NULL
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Cart
+        WHERE address_id = @address_id
+          AND status = 'Active'
+    )
+        RETURN -2;
+    INSERT INTO Cart
+        (status, customer_id, address_id)
+    VALUES
+        ('Active', @customer_id, @address_id);
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+
+CREATE PROCEDURE Add_To_Cart
+    @cart_id INT,
+    @product_id INT,
+    @quantity INT,
+    @notes VARCHAR(255)
+AS
+BEGIN
+
+    DECLARE @customer_id INT;
+    DECLARE @address_id INT;
+    DECLARE @zone_id INT;
+    DECLARE @old_quantity INT;
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Cart
+        WHERE cart_id = @cart_id
+          AND status = 'Active'
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Product
+        WHERE product_id = @product_id
+    )
+        RETURN -1;
+
+
+    IF @quantity <= 0
+        RETURN -1;
+
+    SELECT
+        @customer_id = customer_id,
+        @address_id = address_id
+    FROM Cart
+    WHERE cart_id = @cart_id;
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Address
+        WHERE address_id = @address_id
+          AND customer_id = @customer_id
+          AND is_active = 1
+    )
+        RETURN -3;
+
+    SELECT @zone_id = zone_id
+    FROM Address
+    WHERE address_id = @address_id;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Product P
+        INNER JOIN Business B
+            ON P.business_id = B.business_id
+        WHERE P.product_id = @product_id
+          AND B.zone_id = @zone_id
+    )
+        RETURN -5;
+
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM CartItem
+        WHERE cart_id = @cart_id
+          AND product_id = @product_id
+    )
+    BEGIN
+
+        SELECT @old_quantity = quantity
+        FROM CartItem
+        WHERE cart_id = @cart_id
+          AND product_id = @product_id;
+        IF @old_quantity + @quantity > 10
+            RETURN -6;
+
+        UPDATE CartItem
+        SET quantity = quantity + @quantity
+        WHERE cart_id = @cart_id
+          AND product_id = @product_id;
+
+        IF @notes IS NOT NULL
+        BEGIN
+            UPDATE CartItem
+            SET notes = @notes
+            WHERE cart_id = @cart_id
+              AND product_id = @product_id;
+        END
+
+    END
+
+
+    ELSE
+    BEGIN
+
+        IF @quantity > 10
+            RETURN -6;
+
+
+        INSERT INTO CartItem
+            (cart_id, product_id, quantity, notes)
+        VALUES
+            (@cart_id, @product_id, @quantity, @notes);
+
+    END
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+CREATE PROCEDURE Remove_From_Cart
+    @cart_id INT,
+    @product_id INT
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Cart
+        WHERE cart_id = @cart_id
+          AND status = 'Active'
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM CartItem
+        WHERE cart_id = @cart_id
+          AND product_id = @product_id
+    )
+        RETURN -1;
+
+
+    DELETE FROM CartItem
+    WHERE cart_id = @cart_id
+      AND product_id = @product_id;
+
+
+    RETURN 0;
+
+END;
+GO
+
+
+--functionnnnnnnn to be dropped
+CREATE FUNCTION Calculate_Voucher_Discount
+(
+    @voucher_id INT,
+    @order_subtotal DECIMAL(10,2)
+)
+RETURNS DECIMAL(10,2)
+AS
+BEGIN
+
+    DECLARE @discount DECIMAL(10,2);
+    DECLARE @amount DECIMAL(10,2);
+    DECLARE @is_percentage BIT;
+
+
+    IF @voucher_id IS NULL
+        RETURN 0;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Voucher
+        WHERE voucher_id = @voucher_id
+          AND status = 'Unused'
+          AND expiry_date >= CAST(GETDATE() AS DATE)
+    )
+        RETURN 0;
+
+
+    SELECT
+        @amount = amount,
+        @is_percentage = is_percentage
+    FROM Voucher
+    WHERE voucher_id = @voucher_id;
+
+
+    IF @is_percentage = 1
+        SET @discount = @order_subtotal * @amount / 100;
+
+
+    ELSE
+        SET @discount = @amount;
+
+    IF @discount > @order_subtotal
+        SET @discount = @order_subtotal;
+
+
+    RETURN @discount;
+
+END;
+GO
+
+CREATE PROCEDURE Checkout_Cart
+    @cart_id INT,
+    @voucher_id INT,
+    @payment_method VARCHAR(20),
+    @card_id INT
+AS
+BEGIN
+
+    DECLARE @customer_id INT;
+    DECLARE @address_id INT;
+    DECLARE @zone_id INT;
+
+    DECLARE @subtotal DECIMAL(10,2);
+    DECLARE @delivery_total DECIMAL(10,2);
+    DECLARE @discount DECIMAL(10,2);
+    DECLARE @total_amount DECIMAL(10,2);
+
+    DECLARE @order_id INT;
+
+    DECLARE @suborder_id INT;
+    DECLARE @rider_id INT;
+
+    DECLARE @now TIME;
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Cart
+        WHERE cart_id = @cart_id
+    )
+        RETURN -1;
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Cart
+        WHERE cart_id = @cart_id
+          AND status = 'Active'
+    )
+        RETURN -4;
+
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM CartItem
+        WHERE cart_id = @cart_id
+    )
+        RETURN -9;
+
+    SELECT
+        @customer_id = customer_id,
+        @address_id = address_id
+    FROM Cart
+    WHERE cart_id = @cart_id;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE user_id = @customer_id
+          AND account_status = 'Blacklisted'
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Address
+        WHERE address_id = @address_id
+          AND customer_id = @customer_id
+          AND is_active = 1
+    )
+        RETURN -3;
+
+
+    SELECT @zone_id = zone_id
+    FROM Address
+    WHERE address_id = @address_id;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM CartItem CI
+        INNER JOIN Product P
+            ON CI.product_id = P.product_id
+        WHERE CI.cart_id = @cart_id
+          AND P.is_available = 0
+    )
+        RETURN -4;
+
+    IF EXISTS (
+        SELECT 1
+        FROM CartItem CI
+        INNER JOIN Product P
+            ON CI.product_id = P.product_id
+        INNER JOIN Business B
+            ON P.business_id = B.business_id
+        WHERE CI.cart_id = @cart_id
+          AND B.status <> 'Active'
+    )
+        RETURN -4;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM CartItem CI
+        INNER JOIN Product P
+            ON CI.product_id = P.product_id
+        INNER JOIN Business B
+            ON P.business_id = B.business_id
+        WHERE CI.cart_id = @cart_id
+          AND B.zone_id <> @zone_id
+    )
+        RETURN -5;
+       
+
+    SET @now = CAST(GETDATE() AS TIME);
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM CartItem CI
+        INNER JOIN Product P
+            ON CI.product_id = P.product_id
+        INNER JOIN Business B
+            ON P.business_id = B.business_id
+        WHERE CI.cart_id = @cart_id
+          AND
+          (-- normal hours
+          (   B.opening_hour < B.closing_hour
+                  AND
+                  (
+                      @now < B.opening_hour
+                      OR @now >= B.closing_hour
+                  )
+              )
+
+              OR
+
+              -- overnight hours
+              (
+                  B.opening_hour > B.closing_hour
+                  AND
+                  (
+                      @now < B.opening_hour
+                      AND @now >= B.closing_hour
+                  )
+              )
+          )
+    )
+        RETURN -4;
+
+
+
+
+    IF @voucher_id IS NOT NULL
+       AND NOT EXISTS (
+            SELECT 1
+            FROM Voucher
+            WHERE voucher_id = @voucher_id
+              AND customer_id = @customer_id
+              AND status = 'Unused'
+              AND expiry_date >= CAST(GETDATE() AS DATE)
+       )
+        RETURN -1;
+
+
+
+    IF @payment_method NOT IN ('Cash', 'Card', 'Wallet')
+        RETURN -1;
+
+    IF @payment_method = 'Card'
+    BEGIN
+
+        IF @card_id IS NULL
+            RETURN -7;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Card
+            WHERE card_id = @card_id
+              AND customer_id = @customer_id
+              AND expiration_date >= CAST(GETDATE() AS DATE)
+        )
+            RETURN -7;
+
+    END
+
+
+    -- Cash should pay all in cash
+    ELSE IF @card_id IS NOT NULL
+        RETURN -7;
+
+
+    --  CALCULATE PRICES BEFORE CHANGING ANYTHING
+    SELECT @subtotal =
+        SUM(CI.quantity * (P.price - P.discount_amount))
+    FROM CartItem CI
+    INNER JOIN Product P
+        ON CI.product_id = P.product_id
+    WHERE CI.cart_id = @cart_id;
+
+
+    SELECT @delivery_total =
+        COUNT(DISTINCT P.business_id) * Z.delivery_fee
+    FROM CartItem CI
+    INNER JOIN Product P
+        ON CI.product_id = P.product_id
+    INNER JOIN Zone Z
+        ON Z.zone_id = @zone_id
+    WHERE CI.cart_id = @cart_id
+    GROUP BY Z.delivery_fee;
+
+
+    SET @discount =
+       -- dbo.
+        Calculate_Voucher_Discount(
+            @voucher_id,
+            @subtotal
+        );
+
+
+    SET @total_amount =
+        @subtotal
+        + @delivery_total
+        - @discount;
+
+
+    IF @payment_method = 'Wallet'
+       AND NOT EXISTS (
+            SELECT 1
+            FROM Customer
+            WHERE customer_id = @customer_id
+              AND wallet_balance >= @total_amount
+       )
+        RETURN -7;
+
+
+    BEGIN TRANSACTION;
+
+    UPDATE CI
+    SET CI.unit_price =
+        P.price - P.discount_amount
+    FROM CartItem CI
+    INNER JOIN Product P
+        ON CI.product_id = P.product_id
+    WHERE CI.cart_id = @cart_id;
+
+
+    INSERT INTO Orders
+    (
+        order_date,
+        status,
+        discount_amount,
+        total_amount,
+        cart_id,
+        zone_id,
+        voucher_id
+    )
+    VALUES
+    (
+        GETDATE(),
+        'Placed',
+        @discount,
+        @total_amount,
+        @cart_id,
+        @zone_id,
+        @voucher_id
+    );
+
+
+    SET @order_id = SCOPE_IDENTITY();
+
+
+    INSERT INTO SubOrder
+    (
+        status,
+        total_price,
+        delivery_fee,
+        order_id,
+        business_id
+    )
+
+    SELECT
+        'Placed',
+        SUM(CI.quantity * CI.unit_price),
+        Z.delivery_fee,
+        @order_id,
+        P.business_id
+
+    FROM CartItem CI
+
+    INNER JOIN Product P
+        ON CI.product_id = P.product_id
+
+    INNER JOIN Zone Z
+        ON Z.zone_id = @zone_id
+
+    WHERE CI.cart_id = @cart_id
+
+    GROUP BY
+        P.business_id,
+        Z.delivery_fee;
+
+
+
+    WHILE EXISTS (
+        SELECT 1
+        FROM SubOrder S
+        WHERE S.order_id = @order_id
+          AND NOT EXISTS (
+              SELECT 1
+              FROM Delivery D
+              WHERE D.suborder_id = S.suborder_id
+          )
+    )
+
+    BEGIN
+
+        SET @suborder_id = NULL;
+        SET @rider_id = NULL;
+
+
+        SELECT TOP 1
+            @suborder_id = suborder_id
+        FROM SubOrder
+        WHERE order_id = @order_id
+          AND NOT EXISTS (
+              SELECT 1
+              FROM Delivery
+              WHERE Delivery.suborder_id =
+                    SubOrder.suborder_id
+          )
+        ORDER BY suborder_id;
+
+
+        SELECT TOP 1
+            @rider_id = R.rider_id
+        FROM Rider R
+
+        INNER JOIN Users U
+            ON R.rider_id = U.user_id
+
+        LEFT JOIN Delivery D
+            ON R.rider_id = D.rider_id
+
+        LEFT JOIN SubOrder S
+            ON D.suborder_id = S.suborder_id
+           AND S.status IN ('Assigned', 'Picked Up')
+
+        WHERE R.zone_id = @zone_id
+          AND R.is_available = 1
+          AND U.account_status = 'Active'
+
+        GROUP BY R.rider_id
+
+        ORDER BY
+            COUNT(S.suborder_id),
+            R.rider_id;
+
+
+
+
+        IF @rider_id IS NULL
+        BEGIN
+            ROLLBACK TRANSACTION;
+            RETURN -8;
+        END;
+
+
+        INSERT INTO Delivery
+        (
+            assigned_at,
+            suborder_id,
+            rider_id
+        )
+        VALUES
+        (
+            GETDATE(),
+            @suborder_id,
+            @rider_id
+        );
+
+
+        UPDATE SubOrder
+        SET status = 'Assigned'
+        WHERE suborder_id = @suborder_id;
+
+    END
+
+
+    --------------------------------------------------
+    -- 18. MARK VOUCHER USED
+    --------------------------------------------------
+
+    IF @voucher_id IS NOT NULL
+    BEGIN
+
+        UPDATE Voucher
+        SET status = 'Used'
+        WHERE voucher_id = @voucher_id;
+
+    END
+
+
+    --------------------------------------------------
+    -- 19. CREATE PAYMENT
+    --------------------------------------------------
+
+    INSERT INTO Payment
+    (
+        amount,
+        currency,
+        method,
+        transaction_date,
+        refunded_amount,
+        order_id,
+        card_id
+    )
+    VALUES
+    (
+        @total_amount,
+        'EGP',
+        @payment_method,
+        GETDATE(),
+        0,
+        @order_id,
+        @card_id
+    );
+
+
+    --------------------------------------------------
+    -- 20. DEDUCT WALLET
+    --------------------------------------------------
+
+    IF @payment_method = 'Wallet'
+    BEGIN
+
+        UPDATE Customer
+        SET wallet_balance =
+            wallet_balance - @total_amount
+        WHERE customer_id = @customer_id;
+
+    END
+
+
+    --------------------------------------------------
+    -- 21. CART IS NOW CHECKED OUT
+    --------------------------------------------------
+
+    UPDATE Cart
+    SET status = 'Checked Out'
+    WHERE cart_id = @cart_id;
+
+
+    COMMIT TRANSACTION;
+
+
+    RETURN 0;
+
+END;
 GO
