@@ -3592,3 +3592,93 @@ BEGIN
 END;
 GO
 
+CREATE FUNCTION My_Earnings
+(
+    @rider_id INT,
+    @from_date DATE,
+    @to_date DATE
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        COUNT(D.delivery_id) AS completed_deliveries,
+        SUM(S.delivery_fee) AS total_delivery_fees,
+        SUM(S.delivery_fee * 0.80) AS total_earnings
+
+    FROM Delivery D
+
+    INNER JOIN SubOrder S
+        ON D.suborder_id = S.suborder_id
+
+    WHERE D.rider_id = @rider_id
+      AND S.status = 'Delivered'
+      AND CAST(D.delivered_at AS DATE)
+          BETWEEN @from_date AND @to_date
+);
+GO
+
+
+CREATE FUNCTION My_Rating_Summary
+(
+    @rider_id INT
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        AVG(CAST(D.rider_rating AS DECIMAL(3,2))) AS avg_rating,
+
+        COUNT(D.rider_rating) AS ratings_count,
+
+        COUNT(CASE WHEN D.rider_rating = 5 THEN 1 END) AS five_star,
+        COUNT(CASE WHEN D.rider_rating = 4 THEN 1 END) AS four_star,
+        COUNT(CASE WHEN D.rider_rating = 3 THEN 1 END) AS three_star,
+        COUNT(CASE WHEN D.rider_rating = 2 THEN 1 END) AS two_star,
+        COUNT(CASE WHEN D.rider_rating = 1 THEN 1 END) AS one_star
+
+    FROM Delivery D
+
+    WHERE D.rider_id = @rider_id
+);
+GO
+
+
+CREATE FUNCTION My_Delivery_History
+(
+    @rider_id INT,
+    @from_date DATE,
+    @to_date DATE
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        D.delivery_id,
+        S.order_id,
+        B.name AS business_name,
+        S.status,
+        D.assigned_at,
+        D.picked_up_at,
+        D.delivered_at,
+        D.tracking_time
+
+    FROM Delivery D
+
+    INNER JOIN SubOrder S
+        ON D.suborder_id = S.suborder_id
+
+    INNER JOIN Business B
+        ON S.business_id = B.business_id
+
+    WHERE D.rider_id = @rider_id
+
+      AND S.status IN ('Delivered', 'Cancelled')
+
+      AND CAST(D.assigned_at AS DATE)
+          BETWEEN @from_date AND @to_date
+);
+GO
