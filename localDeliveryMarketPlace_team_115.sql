@@ -2772,8 +2772,7 @@ BEGIN
 
 
     SET @discount =
-       -- dbo.
-        Calculate_Voucher_Discount(
+       dbo.Calculate_Voucher_Discount(
             @voucher_id,
             @subtotal
         );
@@ -2917,9 +2916,6 @@ BEGIN
             COUNT(S.suborder_id),
             R.rider_id;
 
-
-
-
         IF @rider_id IS NULL
         BEGIN
             ROLLBACK TRANSACTION;
@@ -2947,11 +2943,6 @@ BEGIN
 
     END
 
-
-    --------------------------------------------------
-    -- 18. MARK VOUCHER USED
-    --------------------------------------------------
-
     IF @voucher_id IS NOT NULL
     BEGIN
 
@@ -2960,11 +2951,6 @@ BEGIN
         WHERE voucher_id = @voucher_id;
 
     END
-
-
-    --------------------------------------------------
-    -- 19. CREATE PAYMENT
-    --------------------------------------------------
 
     INSERT INTO Payment
     (
@@ -2987,11 +2973,6 @@ BEGIN
         @card_id
     );
 
-
-    --------------------------------------------------
-    -- 20. DEDUCT WALLET
-    --------------------------------------------------
-
     IF @payment_method = 'Wallet'
     BEGIN
 
@@ -3001,11 +2982,6 @@ BEGIN
         WHERE customer_id = @customer_id;
 
     END
-
-
-    --------------------------------------------------
-    -- 21. CART IS NOW CHECKED OUT
-    --------------------------------------------------
 
     UPDATE Cart
     SET status = 'Checked Out'
@@ -3019,3 +2995,600 @@ BEGIN
 
 END;
 GO
+
+CREATE PROCEDURE Cancel_Order
+    @order_id INT
+AS
+BEGIN
+
+    DECLARE @customer_id INT;
+    DECLARE @voucher_id INT;
+    DECLARE @method VARCHAR(20);
+    DECLARE @refund DECIMAL(10,2);
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Orders
+        WHERE order_id = @order_id
+    )
+        RETURN -1;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM Orders
+        WHERE order_id = @order_id
+          AND status = 'Cancelled'
+    )
+        RETURN -4;
+
+
+    IF EXISTS (
+        SELECT 1
+        FROM SubOrder
+        WHERE order_id = @order_id
+          AND status IN ('Picked Up', 'Delivered')
+    )
+        RETURN -4;
+
+
+    SELECT @customer_id = CT.customer_id,
+           @voucher_id = O.voucher_id
+    FROM Orders O
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+    WHERE O.order_id = @order_id;
+
+
+    SELECT @refund = amount - refunded_amount,
+           @method = method
+    FROM Payment
+    WHERE order_id = @order_id;
+
+
+    IF @method <> 'Cash' AND @refund > 0
+        UPDATE Customer
+        SET wallet_balance = wallet_balance + @refund
+        WHERE customer_id = @customer_id;
+
+
+    UPDATE Payment
+    SET refunded_amount = amount
+    WHERE order_id = @order_id;
+
+
+    UPDATE SubOrder
+    SET status = 'Cancelled'
+    WHERE order_id = @order_id
+      AND status <> 'Cancelled';
+
+
+    UPDATE Orders
+    SET status = 'Cancelled',
+        voucher_id = NULL
+    WHERE order_id = @order_id;
+
+
+    IF @voucher_id IS NOT NULL
+        UPDATE Voucher
+        SET status = 'Unused'
+        WHERE voucher_id = @voucher_id;
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Reorder
+    @order_id INT,
+    @address_id INT
+AS
+BEGIN
+
+    DECLARE @customer_id INT;
+    DECLARE @old_cart_id INT;
+    DECLARE @order_zone INT;
+    DECLARE @new_cart_id INT;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Orders
+        WHERE order_id = @order_id
+    )
+        RETURN -1;
+
+    SELECT @customer_id = CT.customer_id,
+           @old_cart_id = O.cart_id,
+           @order_zone = O.zone_id
+    FROM Orders O
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+    WHERE O.order_id = @order_id;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Users
+        WHERE user_id = @customer_id
+          AND account_status = 'Blacklisted'
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Address
+        WHERE address_id = @address_id
+          AND customer_id = @customer_id
+    )
+        RETURN -3;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Address
+        WHERE address_id = @address_id
+          AND zone_id = @order_zone
+    )
+        RETURN -5;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Cart
+        WHERE address_id = @address_id
+          AND status = 'Active'
+    )
+        RETURN -2;
+
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM CartItem CI
+        INNER JOIN Product P
+            ON CI.product_id = P.product_id
+        INNER JOIN Business B
+            ON P.business_id = B.business_id
+        WHERE CI.cart_id = @old_cart_id
+          AND P.is_available = 1
+          AND B.status = 'Active'
+    )
+        RETURN -9;
+
+
+    UPDATE Address
+    SET is_active = 0
+    WHERE customer_id = @customer_id;
+
+    UPDATE Address
+    SET is_active = 1
+    WHERE address_id = @address_id;
+
+    INSERT INTO Cart
+        (status, customer_id, address_id)
+    VALUES
+        ('Active', @customer_id, @address_id);
+
+    SET @new_cart_id = SCOPE_IDENTITY();
+
+
+    INSERT INTO CartItem
+        (cart_id, product_id, quantity, notes)
+    SELECT
+        @new_cart_id,
+        CI.product_id,
+        CI.quantity,
+        CI.notes
+    FROM CartItem CI
+    INNER JOIN Product P
+        ON CI.product_id = P.product_id
+    INNER JOIN Business B
+        ON P.business_id = B.business_id
+    WHERE CI.cart_id = @old_cart_id
+      AND P.is_available = 1
+      AND B.status = 'Active';
+
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Submit_Feedback
+    @suborder_id INT,
+    @headline VARCHAR(100),
+    @description VARCHAR(500),
+    @rating INT
+AS
+BEGIN
+
+    IF @headline IS NULL OR @rating IS NULL
+       OR @rating < 1 OR @rating > 5
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM SubOrder
+        WHERE suborder_id = @suborder_id
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM SubOrder
+        WHERE suborder_id = @suborder_id
+          AND status = 'Delivered'
+    )
+        RETURN -4;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Feedback
+        WHERE suborder_id = @suborder_id
+    )
+        RETURN -2;
+
+
+    INSERT INTO Feedback
+        (headline, description, rating, suborder_id)
+    VALUES
+        (@headline, @description, @rating, @suborder_id);
+
+
+    RETURN 0;
+END;
+GO
+
+CREATE PROCEDURE Rate_Rider
+    @suborder_id INT,
+    @rider_rating INT
+AS
+BEGIN
+
+    IF @rider_rating IS NULL
+       OR @rider_rating < 1 OR @rider_rating > 5
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM SubOrder
+        WHERE suborder_id = @suborder_id
+    )
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM SubOrder
+        WHERE suborder_id = @suborder_id
+          AND status = 'Delivered'
+    )
+        RETURN -4;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Delivery
+        WHERE suborder_id = @suborder_id
+          AND rider_rating IS NOT NULL
+    )
+        RETURN -2;
+
+
+    UPDATE Delivery
+    SET rider_rating = @rider_rating
+    WHERE suborder_id = @suborder_id;
+
+
+    RETURN 0;
+END;
+GO
+
+CREATE FUNCTION My_Order_History
+(
+    @customer_id INT
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        O.order_id,
+        O.order_date,
+        Z.zone_name,
+        O.status,
+        COUNT(S.suborder_id) AS number_of_suborders,
+        O.discount_amount,
+        O.total_amount,
+        P.method AS payment_method,
+        P.refunded_amount
+
+    FROM Orders O
+
+    INNER JOIN Cart CT
+        ON O.cart_id = CT.cart_id
+
+    INNER JOIN Zone Z
+        ON O.zone_id = Z.zone_id
+
+    LEFT JOIN Payment P
+        ON O.order_id = P.order_id
+
+    LEFT JOIN SubOrder S
+        ON O.order_id = S.order_id
+
+    WHERE CT.customer_id = @customer_id
+
+    GROUP BY
+        O.order_id,
+        O.order_date,
+        Z.zone_name,
+        O.status,
+        O.discount_amount,
+        O.total_amount,
+        P.method,
+        P.refunded_amount
+);
+GO
+
+CREATE PROCEDURE Toggle_Favorite
+    @customer_id INT,
+    @item_id INT,
+    @item_type VARCHAR(20)
+AS
+BEGIN
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Customer
+        WHERE customer_id = @customer_id
+    )
+        RETURN -1;
+
+    IF @item_type <> 'Business' AND @item_type <> 'Product'
+        RETURN -1;
+
+
+    IF @item_type = 'Business'
+    BEGIN
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Business
+            WHERE business_id = @item_id
+        )
+            RETURN -1;
+
+        -- already a favorite so remove it
+        IF EXISTS (
+            SELECT 1
+            FROM Favorite_Business
+            WHERE customer_id = @customer_id
+              AND business_id = @item_id
+        )
+            DELETE FROM Favorite_Business
+            WHERE customer_id = @customer_id
+              AND business_id = @item_id;
+
+        -- not a favorite so add it
+        ELSE
+            INSERT INTO Favorite_Business (customer_id, business_id)
+            VALUES (@customer_id, @item_id);
+
+    END
+
+    ELSE
+    BEGIN
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Product
+            WHERE product_id = @item_id
+        )
+            RETURN -1;
+
+        -- already a favorite so remove it
+        IF EXISTS (
+            SELECT 1
+            FROM Favorite_Product
+            WHERE customer_id = @customer_id
+              AND product_id = @item_id
+        )
+            DELETE FROM Favorite_Product
+            WHERE customer_id = @customer_id
+              AND product_id = @item_id;
+
+        -- not a favorite so add it
+        ELSE
+            INSERT INTO Favorite_Product (customer_id, product_id)
+            VALUES (@customer_id, @item_id);
+
+    END
+
+
+    RETURN 0;
+END;
+GO
+
+CREATE FUNCTION My_Favorites
+(
+    @customer_id INT
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    -- favorites that can be ordered
+    SELECT
+        P.product_id,
+        P.name AS product_name,
+        B.name AS business_name,
+        1 AS is_orderable
+    FROM Favorite_Product F
+    INNER JOIN Product P
+        ON F.product_id = P.product_id
+    INNER JOIN Business B
+        ON P.business_id = B.business_id
+    WHERE F.customer_id = @customer_id
+      AND P.is_available = 1
+      AND B.status = 'Active'
+
+    UNION ALL
+
+    -- favorites that can't be ordered
+    SELECT
+        P.product_id,
+        P.name,
+        B.name,
+        0
+    FROM Favorite_Product F
+    INNER JOIN Product P
+        ON F.product_id = P.product_id
+    INNER JOIN Business B
+        ON P.business_id = B.business_id
+    WHERE F.customer_id = @customer_id
+      AND (P.is_available = 0 OR B.status <> 'Active')
+);
+GO
+
+CREATE FUNCTION Recommended_Products ( @customer_id INT)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT TOP 10
+        P.product_id,
+        P.name AS product_name,
+        B.name AS business_name,
+        P.category,
+        P.price - P.discount_amount AS final_price
+
+    FROM Product P
+
+    INNER JOIN Business B ON P.business_id = B.business_id
+    INNER JOIN Address A ON B.zone_id = A.zone_id
+
+    WHERE A.customer_id = @customer_id
+      AND A.is_active = 1
+      AND P.is_available = 1
+      AND B.status = 'Active'
+      AND EXISTS (
+          SELECT 1
+          FROM CartItem CI
+          INNER JOIN Cart C ON CI.cart_id = C.cart_id
+          INNER JOIN Orders O ON C.cart_id = O.cart_id
+          INNER JOIN Product P2 ON CI.product_id = P2.product_id
+          WHERE C.customer_id = @customer_id AND P2.category = P.category
+      )
+      AND NOT EXISTS (
+          SELECT 1
+          FROM CartItem CI
+          INNER JOIN Cart C ON CI.cart_id = C.cart_id
+          INNER JOIN Orders O ON C.cart_id = O.cart_id
+          WHERE C.customer_id = @customer_id AND CI.product_id = P.product_id
+      )
+
+    ORDER BY
+        (
+            SELECT SUM(CI2.quantity)
+            FROM CartItem CI2
+            INNER JOIN Cart C2 ON CI2.cart_id = C2.cart_id
+            INNER JOIN Orders O2 ON C2.cart_id = O2.cart_id
+            INNER JOIN Product P2 ON CI2.product_id = P2.product_id
+            WHERE C2.customer_id = @customer_id AND P2.category = P.category
+        ) DESC,
+        P.product_id ASC
+);
+GO
+
+CREATE PROCEDURE Set_Rider_Availability
+    @rider_id INT,
+    @is_available BIT
+AS
+BEGIN
+    IF @rider_id IS NULL OR @is_available IS NULL
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Rider
+        WHERE rider_id = @rider_id
+    )
+        RETURN -1;
+    UPDATE Rider
+    SET is_available = @is_available
+    WHERE rider_id = @rider_id;
+
+
+    RETURN 0;
+END;
+GO
+
+
+CREATE FUNCTION My_Active_Deliveries ( @rider_id INT )
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        D.delivery_id,
+        S.order_id,
+        S.suborder_id,
+        B.name AS business_name,
+        U.first_name + ' ' + U.last_name AS customer_name,
+        A.description AS address_description,
+        Z.zone_name,
+        S.status,
+        D.assigned_at
+
+    FROM Delivery D
+    INNER JOIN SubOrder S ON D.suborder_id = S.suborder_id
+    INNER JOIN Business B ON S.business_id = B.business_id
+    INNER JOIN Orders O ON S.order_id = O.order_id
+    INNER JOIN Cart CT ON O.cart_id = CT.cart_id
+    INNER JOIN Users U ON CT.customer_id = U.user_id
+    INNER JOIN Address A ON CT.address_id = A.address_id
+    INNER JOIN Zone Z ON O.zone_id = Z.zone_id
+     WHERE D.rider_id = @rider_id AND S.status IN ('Assigned', 'Picked Up')
+);
+GO
+
+CREATE PROCEDURE Mark_Picked_Up
+    @delivery_id INT
+AS
+BEGIN
+
+    DECLARE @suborder_id INT;
+    DECLARE @order_id INT;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM Delivery
+        WHERE delivery_id = @delivery_id
+    )
+        RETURN -1;
+
+    SELECT @suborder_id = D.suborder_id,
+           @order_id = S.order_id
+    FROM Delivery D
+    INNER JOIN SubOrder S
+        ON D.suborder_id = S.suborder_id
+    WHERE D.delivery_id = @delivery_id;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM SubOrder
+        WHERE suborder_id = @suborder_id
+          AND status = 'Assigned'
+    )
+        RETURN -4;
+
+    UPDATE SubOrder
+    SET status = 'Picked Up'
+    WHERE suborder_id = @suborder_id;
+
+    UPDATE Delivery
+    SET picked_up_at = GETDATE()
+    WHERE delivery_id = @delivery_id;
+
+    UPDATE Orders
+    SET status = 'In Progress'
+    WHERE order_id = @order_id;
+
+    RETURN 0;
+END;
+GO
+
