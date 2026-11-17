@@ -338,16 +338,6 @@ BEGIN
 END;
 GO
 
-CREATE PROCEDURE clearAllTables 
-AS 
-BEGIN 
- EXEC dropAllTables;
- EXEC createAllTables;
-END;
-GO
-
-EXEC createAllTables;
-GO
 
 CREATE VIEW allBusinessProfiles
 AS
@@ -3680,5 +3670,190 @@ RETURN
 
       AND CAST(D.assigned_at AS DATE)
           BETWEEN @from_date AND @to_date
+);
+GO
+
+
+CREATE FUNCTION Search_Platform
+(
+    @customer_id INT,
+    @keyword VARCHAR(100)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        B.business_id,
+        B.name AS business_name,
+
+        CASE
+            WHEN B.name = @keyword THEN 1
+            WHEN B.name LIKE @keyword + '%' THEN 2
+            ELSE 3
+        END AS priority
+
+    FROM Business B
+
+    INNER JOIN Address A
+        ON B.zone_id = A.zone_id
+
+    WHERE A.customer_id = @customer_id
+      AND A.is_active = 1
+      AND B.status = 'Active'
+      AND B.name LIKE '%' + @keyword + '%'
+);
+GO
+
+
+
+CREATE FUNCTION Reconcile_Order_Totals()
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        O.order_id,
+
+        ISNULL(S.suborders_total, 0) - O.discount_amount
+            AS expected_total,
+
+        O.total_amount AS order_total,
+
+        P.amount AS payment_amount
+
+    FROM Orders O
+
+    LEFT JOIN
+    (
+        SELECT
+            order_id,
+            SUM(total_price + delivery_fee) AS suborders_total
+        FROM SubOrder
+        GROUP BY order_id
+    ) S
+        ON O.order_id = S.order_id
+
+    LEFT JOIN Payment P
+        ON O.order_id = P.order_id
+
+    WHERE
+        O.total_amount <>
+            ISNULL(S.suborders_total, 0) - O.discount_amount
+
+        OR
+        P.amount <> O.total_amount
+
+        OR
+        P.payment_id IS NULL
+);
+GO
+
+
+CREATE FUNCTION Nearby_Businesses_By_Category
+(
+    @address_id INT,
+    @product_category VARCHAR(50)
+)
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        B.business_id,
+        B.name AS business_name,
+        Z.zone_name,
+
+        CASE
+            WHEN B.zone_id = A.zone_id THEN 1
+            ELSE 0
+        END AS same_zone,
+
+        ZA.zone_avg_delivery_time
+
+    FROM Business B
+
+    INNER JOIN Zone Z
+        ON B.zone_id = Z.zone_id
+
+    INNER JOIN Address A
+        ON A.address_id = @address_id
+
+    LEFT JOIN
+    (
+        SELECT
+            O.zone_id,
+            AVG(CAST(D.tracking_time AS DECIMAL(10,2)))
+                AS zone_avg_delivery_time
+
+        FROM Orders O
+
+        INNER JOIN SubOrder S
+            ON O.order_id = S.order_id
+
+        INNER JOIN Delivery D
+            ON S.suborder_id = D.suborder_id
+
+        WHERE S.status = 'Delivered'
+
+        GROUP BY O.zone_id
+    ) ZA
+        ON B.zone_id = ZA.zone_id
+
+    WHERE B.status = 'Active'
+
+      AND EXISTS
+      (
+          SELECT 1
+          FROM Product P
+          WHERE P.business_id = B.business_id
+            AND P.category = @product_category
+            AND P.is_available = 1
+      )
+);
+GO
+
+CREATE FUNCTION Platform_Health_Snapshot()
+RETURNS TABLE
+AS
+RETURN
+(
+    SELECT
+        (
+            SELECT COUNT(*)
+            FROM Business
+            WHERE status = 'Active'
+        ) AS active_businesses,
+
+        (
+            SELECT COUNT(*)
+            FROM Rider R
+            INNER JOIN Users U
+                ON R.rider_id = U.user_id
+            WHERE R.is_available = 1
+              AND U.account_status = 'Active'
+        ) AS available_riders,
+
+        (
+            SELECT COUNT(*)
+            FROM Orders
+            WHERE CAST(order_date AS DATE)
+                = CAST(GETDATE() AS DATE)
+        ) AS orders_today,
+
+        (
+            SELECT
+                AVG(CAST(tracking_time AS DECIMAL(10,2)))
+            FROM Delivery
+            WHERE CAST(delivered_at AS DATE)
+                = CAST(GETDATE() AS DATE)
+        ) AS avg_delivery_time_today,
+        (
+            SELECT COUNT(*)
+            FROM Feedback
+            WHERE rating <= 2
+              AND CAST(feedback_date AS DATE)
+                  = CAST(GETDATE() AS DATE)
+        ) AS low_ratings_today
 );
 GO
