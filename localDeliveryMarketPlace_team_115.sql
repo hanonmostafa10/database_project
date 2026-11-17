@@ -1,7 +1,9 @@
-﻿CREATE DATABASE localDeliveryMarketPlace_team_115;
+﻿-- Student: Hamza Hassouna (64-11102)
+CREATE DATABASE LocalDeliveryMarketplace_Team_115;
 GO
-USE localDeliveryMarketPlace_team_115;
+USE LocalDeliveryMarketplace_Team_115;
 GO
+-- Student: Hamza Hassouna (64-11102)
 CREATE PROCEDURE createAllTables 
 AS
 BEGIN 
@@ -281,11 +283,13 @@ CREATE TABLE Feedback (
 END ;
 GO
 
-CREATE PROCEDURE dropALLTables 
+-- Student: Hamza Hassouna (64-11102)
+CREATE PROCEDURE dropAllTables
 AS 
 BEGIN 
-  DROP TABLE Feedback;
+    DROP TABLE Feedback;
     DROP TABLE Payment;
+    DROP TABLE Delivery;
     DROP TABLE SubOrder;
     DROP TABLE Orders;
     DROP TABLE CartItem;
@@ -311,6 +315,7 @@ BEGIN
 END;
 GO
 
+-- Student: Hamza Hassouna (64-11102)
 CREATE PROCEDURE dropAllProceduresFunctionsViews
 AS
 BEGIN
@@ -323,22 +328,82 @@ BEGIN
     DROP VIEW IF EXISTS TopSellingProducts;
     DROP VIEW IF EXISTS ZoneDeliveryPerformance;
 
+  -- Procedures
     DROP PROCEDURE IF EXISTS createAllTables;
     DROP PROCEDURE IF EXISTS dropAllTables;
-    DROP PROCEDURE IF EXISTS clearAllTables
+    DROP PROCEDURE IF EXISTS Customer_Register;
+    DROP PROCEDURE IF EXISTS Partner_Register;
+    DROP PROCEDURE IF EXISTS Rider_Register;
+    DROP PROCEDURE IF EXISTS Change_Password;
+    DROP PROCEDURE IF EXISTS Create_Admin;
+    DROP PROCEDURE IF EXISTS Approve_Business;
+    DROP PROCEDURE IF EXISTS Reject_Business;
+    DROP PROCEDURE IF EXISTS Suspend_Business;
+    DROP PROCEDURE IF EXISTS Reinstate_Business;
+    DROP PROCEDURE IF EXISTS Create_Zone;
+    DROP PROCEDURE IF EXISTS Update_Zone_Fee;
+    DROP PROCEDURE IF EXISTS Assign_Admin_Zone;
+    DROP PROCEDURE IF EXISTS Issue_Voucher;
+    DROP PROCEDURE IF EXISTS Blacklist_Customer;
+    DROP PROCEDURE IF EXISTS Lift_Customer_Blacklist;
+    DROP PROCEDURE IF EXISTS Register_Business;
+    DROP PROCEDURE IF EXISTS Update_Business_Info;
+    DROP PROCEDURE IF EXISTS Upsert_Product;
+    DROP PROCEDURE IF EXISTS Toggle_Product_Status;
+    DROP PROCEDURE IF EXISTS Set_Product_Promotion;
+    DROP PROCEDURE IF EXISTS Add_Customer_Address;
+    DROP PROCEDURE IF EXISTS Update_Delete_Customer_Address;
+    DROP PROCEDURE IF EXISTS Change_Active_Address;
+    DROP PROCEDURE IF EXISTS Add_Card;
+    DROP PROCEDURE IF EXISTS Create_Cart;
+    DROP PROCEDURE IF EXISTS Add_To_Cart;
+    DROP PROCEDURE IF EXISTS Remove_From_Cart;
+    DROP PROCEDURE IF EXISTS Checkout_Cart;
+    DROP PROCEDURE IF EXISTS Cancel_Order;
+    DROP PROCEDURE IF EXISTS Reorder;
+    DROP PROCEDURE IF EXISTS Submit_Feedback;
+    DROP PROCEDURE IF EXISTS Rate_Rider;
+    DROP PROCEDURE IF EXISTS Toggle_Favorite;
+    DROP PROCEDURE IF EXISTS Set_Rider_Availability;
+    DROP PROCEDURE IF EXISTS Mark_Picked_Up;
+    DROP PROCEDURE IF EXISTS Mark_Delivered;
     -- to be returedn to later lms nekteb el functions 
     -- Functions
     DROP FUNCTION IF EXISTS CustomerLoginValidation;
     DROP FUNCTION IF EXISTS PartnerLoginValidation;
     DROP FUNCTION IF EXISTS RiderLoginValidation;
     DROP FUNCTION IF EXISTS AdminLoginValidation;
+
     DROP FUNCTION IF EXISTS ZoneOrderReport;
-    DROP FUNCTION IF EXISTS Daily_Revenue_Report ; 
-    DROP FUNCTION IF EXISTS TopRiders ;
+    DROP FUNCTION IF EXISTS TopRiders;
+    DROP FUNCTION IF EXISTS Daily_Revenue_Report;
+
+    DROP FUNCTION IF EXISTS BusinessSalesReport;
+    DROP FUNCTION IF EXISTS BusinessFeedbackOverview;
+
+    DROP FUNCTION IF EXISTS Calculate_Voucher_Discount;
+
+    DROP FUNCTION IF EXISTS My_Order_History;
+    DROP FUNCTION IF EXISTS My_Favorites;
+    DROP FUNCTION IF EXISTS Recommended_Products;
+
+    DROP FUNCTION IF EXISTS My_Active_Deliveries;
+    DROP FUNCTION IF EXISTS My_Earnings;
+    DROP FUNCTION IF EXISTS My_Rating_Summary;
+    DROP FUNCTION IF EXISTS My_Delivery_History;
+
+    DROP FUNCTION IF EXISTS Search_Platform;
+    DROP FUNCTION IF EXISTS Reconcile_Order_Totals;
+    DROP FUNCTION IF EXISTS Nearby_Businesses_By_Category;
+    DROP FUNCTION IF EXISTS Platform_Health_Snapshot;
+
 END;
 GO
 
+EXEC createAllTables;
+GO 
 
+-- Student: Hana Mostafa (64-2052)
 CREATE VIEW allBusinessProfiles
 AS
 SELECT
@@ -360,6 +425,7 @@ LEFT JOIN (
 ) T ON B.business_id = T.business_id;
 GO
 
+-- Student: Hamza Hassouna (64-11102)
 CREATE VIEW BusinessesPerZone 
 AS
 SELECT z.zone_id , z.zone_name, COUNT(b.business_id) AS business_count
@@ -368,6 +434,7 @@ LEFT JOIN business b ON z.zone_id = b.zone_id  AND B.status = 'Active'
 GROUP BY z.zone_id , z.zone_name;
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE VIEW BusinessRatingsSummary
 AS
 SELECT b.business_id, b.name AS business_name, AVG(CAST(f.rating AS DECIMAL(3,2))) AS avg_rating, COUNT(f.feedback_id) AS ratings_count
@@ -379,21 +446,16 @@ LEFT JOIN Feedback F
 GROUP BY B.business_id, B.name;
 GO
 
-CREATE VIEW ActiveVouchers
-AS
-SELECT
-    voucher_id,
-    promo_code,
-    customer_id,
-    is_percentage,
-    amount,
-    expiry_date
+-- Student: Abdelrahman El Mallah (64-6677)
+CREATE VIEW ActiveVouchers AS
+SELECT voucher_id, promo_code, customer_id, is_percentage, amount, expiry_date
 FROM Voucher
 WHERE status = 'Unused'
   AND expiry_date >= CAST(GETDATE() AS DATE);
-  GO
+GO
 
-  CREATE VIEW PendingBusinessApprovals
+-- Student: Hana Mostafa (64-2052)
+CREATE VIEW PendingBusinessApprovals
 AS
 SELECT
     B.business_id,
@@ -414,6 +476,7 @@ ON B.business_id = T.business_id
 WHERE B.status = 'Pending';
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE VIEW RiderPerformanceSummary
 AS
 SELECT  R.rider_id,
@@ -428,6 +491,7 @@ SELECT  R.rider_id,
     GROUP BY R.rider_id, U.first_name, U.last_name, Z.zone_name;
 GO
 
+-- Student: Hana Mostafa (64-2052)
 CREATE VIEW TopSellingProducts
 AS 
 SELECT TOP 10 p.product_id, p.name AS product_name, b.name AS business_name,
@@ -449,6 +513,7 @@ ORDER BY units_sold DESC, P.product_id ASC;
 GO
 
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE VIEW ZoneDeliveryPerformance
 AS 
 SELECT z.zone_id, z.zone_name, count(d.delivery_id) AS delivery_count, AVG(CAST(d.tracking_time AS DECIMAL(10,2))) AS avg_tracking_time
@@ -460,9 +525,7 @@ GROUP BY z.zone_id, z.zone_name
 GO
 
 
-
-
-
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Customer_Register
     @first_name VARCHAR(30),
     @middle_name VARCHAR(30),
@@ -474,34 +537,43 @@ CREATE PROCEDURE Customer_Register
     @dob DATE
 AS
 BEGIN
-    IF EXISTS (
-        SELECT 1
-        FROM Users
-        WHERE username = @username OR email = @email)
-        RETURN -2;
+    IF @first_name IS NULL OR @last_name IS NULL
+       OR @username IS NULL OR @password IS NULL
+       OR @email IS NULL OR @phone IS NULL
+        RETURN -1;
+
+    IF @phone NOT LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+        RETURN -1;
 
     IF EXISTS (
-        SELECT 1
-        FROM User_Phone
-        WHERE phone = @phone)
+        SELECT * FROM Users
+        WHERE username = @username OR email = @email
+    )
         RETURN -2;
 
-    INSERT INTO Users(first_name, middle_name, last_name, username, password, email, dob)
-    VALUES (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
-    
-    DECLARE @user_id INT;
-    SET @user_id = SCOPE_IDENTITY();
+    DECLARE @uid INT;
 
-    INSERT INTO Customer (customer_id, wallet_balance)
-    VALUES (@user_id, 0);
+    BEGIN TRANSACTION;
+
+    INSERT INTO Users
+        (first_name, middle_name, last_name, username, password, email, dob)
+    VALUES
+        (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
+
+    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
-    VALUES (@user_id, @phone);
+    VALUES (@uid, @phone);
 
+    INSERT INTO Customer (customer_id, wallet_balance)
+    VALUES (@uid, 0);
+
+    COMMIT TRANSACTION;
     RETURN 0;
 END;
 GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Partner_Register
     @first_name VARCHAR(30),
     @middle_name VARCHAR(30),
@@ -513,35 +585,44 @@ CREATE PROCEDURE Partner_Register
     @dob DATE
 AS
 BEGIN
-IF EXISTS (
-        SELECT 1
-        FROM Users
-        WHERE username = @username OR email = @email)
-        RETURN -2;
+    IF @first_name IS NULL OR @last_name IS NULL
+       OR @username IS NULL OR @password IS NULL
+       OR @email IS NULL OR @phone IS NULL
+        RETURN -1;
+
+    IF @phone NOT LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+        RETURN -1;
 
     IF EXISTS (
-        SELECT 1
-        FROM User_Phone
-        WHERE phone = @phone)
+        SELECT * FROM Users
+        WHERE username = @username OR email = @email
+    )
         RETURN -2;
 
-    INSERT INTO Users(first_name, middle_name, last_name, username, password, email, dob)
-    VALUES (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
-    
-    DECLARE @user_id INT;
-    SET @user_id = SCOPE_IDENTITY();
+    DECLARE @uid INT;
 
-    INSERT INTO Partner (partner_id)
-    VALUES (@user_id);
+    BEGIN TRANSACTION;
+
+    INSERT INTO Users
+        (first_name, middle_name, last_name, username, password, email, dob)
+    VALUES
+        (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
+
+    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
-    VALUES (@user_id, @phone);
+    VALUES (@uid, @phone);
 
+    INSERT INTO Partner (partner_id)
+    VALUES (@uid);
+
+    COMMIT TRANSACTION;
     RETURN 0;
 END;
 GO
 
-CREATE PROCEDURE Rider_Register 
+-- Student: Abdelrahman El Mallah (64-6677)
+CREATE PROCEDURE Rider_Register
     @first_name VARCHAR(30),
     @middle_name VARCHAR(30),
     @last_name VARCHAR(30),
@@ -551,116 +632,158 @@ CREATE PROCEDURE Rider_Register
     @phone CHAR(11),
     @dob DATE,
     @vehicle_type VARCHAR(30),
-    @plate_no VARCHAR(15), 
-    @license_no VARCHAR(20), 
+    @plate_no VARCHAR(15),
+    @license_no VARCHAR(20),
     @zone_id INT
-    AS 
-    BEGIN 
-    IF EXISTS (
-        SELECT 1
-        FROM Users
-        WHERE username = @username OR email = @email)
-        RETURN -2;
-
-    IF EXISTS (
-        SELECT 1
-        FROM User_Phone
-        WHERE phone = @phone)
-        RETURN -2;
-
-    IF EXISTS (
-        SELECT 1 
-        FROM Rider
-        WHERE plate_no = @plate_no OR License_no = @license_no)
-        RETURN -2;
-
-    IF  NOT EXISTS (
-        SELECT 1 
-        FROM Zone 
-        WHERE zone_id = @zone_id)
+AS
+BEGIN
+    IF @first_name IS NULL OR @last_name IS NULL
+       OR @username IS NULL OR @password IS NULL
+       OR @email IS NULL OR @phone IS NULL
         RETURN -1;
 
-    INSERT INTO Users(first_name, middle_name, last_name, username, password, email, dob)
-    VALUES (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
-    
-    DECLARE @user_id INT;
-    SET @user_id = SCOPE_IDENTITY();
+    IF @phone NOT LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+        RETURN -1;
 
-    INSERT INTO Rider (rider_id, vehicle_type, plate_no, license_no, is_available, zone_id)
-    VALUES (@user_id, @vehicle_type, @plate_no, @license_no, 1, @zone_id);
+    IF EXISTS (
+        SELECT * FROM Users
+        WHERE username = @username OR email = @email
+    )
+        RETURN -2;
+
+    IF @vehicle_type IS NULL OR @plate_no IS NULL
+       OR @license_no IS NULL OR @zone_id IS NULL
+        RETURN -1;
+
+    IF NOT EXISTS (SELECT * FROM Zone WHERE zone_id = @zone_id)
+        RETURN -1;
+
+    IF EXISTS (
+        SELECT * FROM Rider
+        WHERE plate_no = @plate_no OR license_no = @license_no
+    )
+        RETURN -2;
+
+    DECLARE @uid INT;
+
+    BEGIN TRANSACTION;
+
+    INSERT INTO Users
+        (first_name, middle_name, last_name, username, password, email, dob)
+    VALUES
+        (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
+
+    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
-    VALUES (@user_id, @phone);
+    VALUES (@uid, @phone);
 
+    INSERT INTO Rider
+        (rider_id, vehicle_type, plate_no, license_no, is_available, zone_id)
+    VALUES (@uid, @vehicle_type, @plate_no, @license_no, 1, @zone_id);
 
+    COMMIT TRANSACTION;
     RETURN 0;
 END;
 GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE FUNCTION CustomerLoginValidation
-    (@username VARCHAR(30),@password VARCHAR(30))
-    RETURNS BIT
-    AS
-    BEGIN
-    DECLARE @success BIT = 0;
-    IF EXISTS ( 
-        SELECT 1 
-        FROM users U
-        INNER JOIN Customer C ON U.user_id = C.Customer_id 
-        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
-    SET @success = 1;
-    RETURN @success;
-    END;
-    GO
+(
+    @username VARCHAR(30),
+    @password VARCHAR(30)
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @res BIT = 0;
+    
+    IF EXISTS (
+        SELECT * FROM Users u, Customer c
+        WHERE u.user_id = c.customer_id 
+          AND u.username = @username 
+          AND u.password = @password 
+          AND u.account_status = 'Active'
+    )
+        SET @res = 1;
 
-    CREATE FUNCTION PartnerLoginValidation
-    (@username VARCHAR(30),@password VARCHAR(30))
-    RETURNS BIT
-    AS
-    BEGIN
-    DECLARE @success BIT = 0;
-    IF EXISTS ( 
-        SELECT 1 
-        FROM users U
-        INNER JOIN partner P ON U.user_id = P.partner_id 
-        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
-    SET @success = 1;
-    RETURN @success;
-    END;
-    GO
+    RETURN @res;
+END;
+GO
 
-    CREATE FUNCTION RiderLoginValidation
-    (@username VARCHAR(30),@password VARCHAR(30))
-    RETURNS BIT
-    AS
-    BEGIN
-    DECLARE @success BIT = 0;
-    IF EXISTS ( 
-        SELECT 1 
-        FROM users U
-        INNER JOIN Rider R ON U.user_id = R.Rider_id 
-        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
-    SET @success = 1;
-    RETURN @success;
-    END;
-    GO
+-- Student: Abdelrahman El Mallah (64-6677)
+CREATE FUNCTION PartnerLoginValidation
+(
+    @username VARCHAR(30),
+    @password VARCHAR(30)
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @res BIT = 0;
+    
+    IF EXISTS (
+        SELECT * FROM Users u, Partner p
+        WHERE u.user_id = p.partner_id 
+          AND u.username = @username 
+          AND u.password = @password 
+          AND u.account_status = 'Active'
+    )
+        SET @res = 1;
 
-    CREATE FUNCTION AdminLoginValidation
-    (@username VARCHAR(30),@password VARCHAR(30))
-    RETURNS BIT
-    AS
-    BEGIN
-    DECLARE @success BIT = 0;
-    IF EXISTS ( 
-        SELECT 1 
-        FROM users U
-        INNER JOIN Admin A ON U.user_id = A.Admin_id 
-        WHERE U.username = @username AND U.password = @password AND U.account_status ='Active')
-    SET @success = 1;
-    RETURN @success;
-    END;
-    GO
+    RETURN @res;
+END;
+GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
+CREATE FUNCTION RiderLoginValidation
+(
+    @username VARCHAR(30),
+    @password VARCHAR(30)
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @res BIT = 0;
+    
+    IF EXISTS (
+        SELECT * FROM Users u, Rider r
+        WHERE u.user_id = r.rider_id 
+          AND u.username = @username 
+          AND u.password = @password 
+          AND u.account_status = 'Active'
+    )
+        SET @res = 1;
+
+    RETURN @res;
+END;
+GO
+
+-- Student: Abdelrahman El Mallah (64-6677)
+CREATE FUNCTION AdminLoginValidation
+(
+    @username VARCHAR(30),
+    @password VARCHAR(30)
+)
+RETURNS BIT
+AS
+BEGIN
+    DECLARE @res BIT = 0;
+    
+    IF EXISTS (
+        SELECT * FROM Users u, Admin a
+        WHERE u.user_id = a.admin_id 
+          AND u.username = @username 
+          AND u.password = @password 
+          AND u.account_status = 'Active'
+    )
+        SET @res = 1;
+
+    RETURN @res;
+END;
+GO
+
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Change_Password
     @user_id INT,
     @old_password VARCHAR(30),
@@ -669,29 +792,30 @@ CREATE PROCEDURE Change_Password
     @success BIT OUTPUT
 AS
 BEGIN
-
     SET @success = 0;
 
-    IF EXISTS (
-        SELECT 1
-        FROM Users
-        WHERE user_id = @user_id
-          AND password = @old_password
-    )
-    AND @new_password = @new_password_repeat
-    AND @new_password <> @old_password
-    BEGIN
-        UPDATE Users
-        SET password = @new_password
-        WHERE user_id = @user_id;
+    IF @user_id IS NULL OR @old_password IS NULL
+       OR @new_password IS NULL OR @new_password_repeat IS NULL
+        RETURN -1;
 
+    IF @new_password != @new_password_repeat OR @new_password = @old_password
+        RETURN -1;
+
+    UPDATE Users
+    SET password = @new_password
+    WHERE user_id = @user_id AND password = @old_password;
+
+    IF @@ROWCOUNT = 1
+    BEGIN
         SET @success = 1;
         RETURN 0;
-    END
+    END;
+
     RETURN -1;
 END;
 GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Create_Admin
     @first_name VARCHAR(30),
     @middle_name VARCHAR(30),
@@ -704,165 +828,148 @@ CREATE PROCEDURE Create_Admin
     @role VARCHAR(20),
     @zone_id INT,
     @super_admin_id INT
-    AS
-    BEGIN
+AS
+BEGIN
     IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @super_admin_id
-          AND role = 'Super Admin'
+        SELECT * FROM Admin
+        WHERE admin_id = @super_admin_id AND role = 'Super Admin'
     )
         RETURN -3;
 
-    IF @role IS NULL
-        SET @role = 'Super Admin';
-
-    IF @first_name IS NULL OR @last_name IS NULL OR @username IS NULL
-       OR @password IS NULL OR @email IS NULL OR @phone IS NULL
+    IF @first_name IS NULL OR @last_name IS NULL
+       OR @username IS NULL OR @password IS NULL
+       OR @email IS NULL OR @phone IS NULL
         RETURN -1;
 
-    IF @role <> 'Super Admin' AND @role <> 'Zone Admin'
+    IF @phone NOT LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
         RETURN -1;
 
-    IF @role = 'Super Admin' AND @zone_id IS NOT NULL
+    IF (@role IS NULL OR @role = 'Super Admin') AND @zone_id IS NOT NULL
         RETURN -1;
 
-    IF @role = 'Zone Admin' AND NOT EXISTS (
-        SELECT 1
-        FROM Zone
-        WHERE zone_id = @zone_id
-    )
+    IF @role IS NOT NULL AND @role NOT IN ('Super Admin', 'Zone Admin')
         RETURN -1;
+
+    IF @role = 'Zone Admin'
+    BEGIN
+        IF @zone_id IS NULL
+            RETURN -1;
+
+        IF NOT EXISTS (SELECT * FROM Zone WHERE zone_id = @zone_id)
+            RETURN -1;
+    END;
 
     IF EXISTS (
-        SELECT 1
-        FROM Users
-        WHERE username = @username
-           OR email = @email
+        SELECT * FROM Users
+        WHERE username = @username OR email = @email
     )
         RETURN -2;
 
-    IF EXISTS (
-        SELECT 1
-        FROM User_Phone
-        WHERE phone = @phone
-    )
-        RETURN -2;
+    DECLARE @uid INT;
+
+    BEGIN TRANSACTION;
 
     INSERT INTO Users
-        (first_name, middle_name, last_name,
-         username, password, email, dob)
+        (first_name, middle_name, last_name, username, password, email, dob)
     VALUES
-        (@first_name, @middle_name, @last_name,
-         @username, @password, @email, @dob);
+        (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
 
-    DECLARE @user_id INT;
-    SET @user_id = SCOPE_IDENTITY();
-
-    INSERT INTO Admin (admin_id, role, zone_id)
-    VALUES (@user_id, @role, @zone_id);
+    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
-    VALUES (@user_id, @phone);
+    VALUES (@uid, @phone);
 
+    IF @role IS NULL OR @role = 'Super Admin'
+    BEGIN
+        INSERT INTO Admin (admin_id, role, zone_id)
+        VALUES (@uid, 'Super Admin', NULL);
+    END
+    ELSE
+    BEGIN
+        INSERT INTO Admin (admin_id, role, zone_id)
+        VALUES (@uid, 'Zone Admin', @zone_id);
+    END;
+
+    COMMIT TRANSACTION;
     RETURN 0;
 END;
 GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Approve_Business
     @business_id INT,
     @admin_id INT
 AS
 BEGIN
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
-    )
-        RETURN -3;
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Business
-        WHERE business_id = @business_id
-    )
+    IF @business_id IS NULL OR @admin_id IS NULL
         RETURN -1;
 
-    IF EXISTS (
-        SELECT 1
+    IF NOT EXISTS (SELECT * FROM Business WHERE business_id = @business_id)
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT *
         FROM Admin A
-        INNER JOIN Business B
-            ON A.zone_id <> B.zone_id
+        JOIN Business B ON B.business_id = @business_id
         WHERE A.admin_id = @admin_id
-          AND B.business_id = @business_id
-          AND A.role = 'Zone Admin'
+          AND (A.role = 'Super Admin'
+               OR (A.role = 'Zone Admin' AND A.zone_id = B.zone_id))
     )
         RETURN -3;
 
     IF NOT EXISTS (
-        SELECT 1
-        FROM Business
-        WHERE business_id = @business_id
-          AND status = 'Pending'
+        SELECT * FROM Business
+        WHERE business_id = @business_id AND status = 'Pending'
     )
         RETURN -4;
 
     UPDATE Business
     SET status = 'Active'
     WHERE business_id = @business_id;
+
     RETURN 0;
 END;
 GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Reject_Business
     @business_id INT,
     @admin_id INT
 AS
 BEGIN
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
-    )
-        RETURN -3;
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Business
-        WHERE business_id = @business_id
-    )
+    IF @business_id IS NULL OR @admin_id IS NULL
         RETURN -1;
 
-    IF EXISTS (
-        SELECT 1
+    IF NOT EXISTS (SELECT * FROM Business WHERE business_id = @business_id)
+        RETURN -1;
+
+    IF NOT EXISTS (
+        SELECT *
         FROM Admin A
-        INNER JOIN Business B
-            ON A.zone_id <> B.zone_id
+        JOIN Business B ON B.business_id = @business_id
         WHERE A.admin_id = @admin_id
-          AND B.business_id = @business_id
-          AND A.role = 'Zone Admin'
+          AND (A.role = 'Super Admin'
+               OR (A.role = 'Zone Admin' AND A.zone_id = B.zone_id))
     )
         RETURN -3;
 
     IF NOT EXISTS (
-        SELECT 1
-        FROM Business
-        WHERE business_id = @business_id
-          AND status = 'Pending'
+        SELECT * FROM Business
+        WHERE business_id = @business_id AND status = 'Pending'
     )
         RETURN -4;
 
     UPDATE Business
     SET status = 'Rejected'
     WHERE business_id = @business_id;
+
     RETURN 0;
 END;
 GO
 
 
 
+-- Student: Hamza Hassouna (64-11102)
 CREATE PROCEDURE Suspend_Business
     @business_id INT,
     @admin_id INT,
@@ -921,6 +1028,27 @@ BEGIN
     INNER JOIN Orders O
         ON V.voucher_id = O.voucher_id
     WHERE EXISTS (
+        SELECT 1
+        FROM SubOrder S
+        WHERE S.order_id = O.order_id
+          AND S.business_id = @business_id
+          AND S.status IN ('Placed', 'Assigned')
+    )
+    AND NOT EXISTS (
+        SELECT 1
+        FROM SubOrder S
+        WHERE S.order_id = O.order_id
+          AND S.business_id <> @business_id
+          AND S.status <> 'Cancelled'
+    );
+
+
+
+    UPDATE O
+    SET voucher_id = NULL
+    FROM Orders O
+    WHERE O.voucher_id IS NOT NULL
+      AND EXISTS (
         SELECT 1
         FROM SubOrder S
         WHERE S.order_id = O.order_id
@@ -1046,6 +1174,7 @@ BEGIN
 END;
 GO
 
+-- Student: Hamza Hassouna (64-11102)
 CREATE PROCEDURE Reinstate_Business
     @business_id INT,
     @super_admin_id INT
@@ -1083,6 +1212,7 @@ BEGIN
 END;
 GO
 
+-- Student: Hamza Hassouna (64-11102)
 CREATE PROCEDURE Create_Zone
     @zone_name VARCHAR(50),
     @delivery_fee DECIMAL(10,2),
@@ -1115,6 +1245,7 @@ BEGIN
 END;
 GO
 
+-- Student: Hamza Hassouna (64-11102)
 CREATE PROCEDURE Update_Zone_Fee
     @zone_id INT,
     @new_fee DECIMAL(10,2),
@@ -1147,43 +1278,28 @@ BEGIN
 END;
 GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Assign_Admin_Zone
     @admin_id INT,
     @zone_id INT,
     @super_admin_id INT
 AS
 BEGIN
-
     IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @super_admin_id
-          AND role = 'Super Admin'
+        SELECT * FROM Admin
+        WHERE admin_id = @super_admin_id AND role = 'Super Admin'
     )
         RETURN -3;
 
-    IF @admin_id IS NULL OR @zone_id IS NULL
+    IF @zone_id IS NULL OR @admin_id IS NULL
+        RETURN -1;
+
+    IF NOT EXISTS (SELECT * FROM Zone WHERE zone_id = @zone_id)
         RETURN -1;
 
     IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
-    )
-        RETURN -1;
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
-          AND role = 'Zone Admin'
-    )
-        RETURN -3;
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Zone
-        WHERE zone_id = @zone_id
+        SELECT * FROM Admin
+        WHERE admin_id = @admin_id AND role = 'Zone Admin'
     )
         RETURN -1;
 
@@ -1195,6 +1311,7 @@ BEGIN
 END;
 GO
 
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Issue_Voucher
     @customer_id INT,
     @promo_code VARCHAR(30),
@@ -1204,64 +1321,31 @@ CREATE PROCEDURE Issue_Voucher
     @admin_id INT
 AS
 BEGIN
-
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
-    )
-        RETURN -3;
-
-    IF @customer_id IS NULL OR @promo_code IS NULL OR @is_percentage IS NULL
-       OR @amount IS NULL OR @expiry_date IS NULL
+    IF @customer_id IS NULL OR @promo_code IS NULL OR @promo_code = ''
+       OR @is_percentage IS NULL OR @amount IS NULL
+       OR @expiry_date IS NULL OR @admin_id IS NULL
         RETURN -1;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Customer
-        WHERE customer_id = @customer_id
-    )
+    IF NOT EXISTS (SELECT * FROM Admin WHERE admin_id = @admin_id)
+        RETURN -3;
+
+    IF NOT EXISTS (SELECT * FROM Customer WHERE customer_id = @customer_id)
         RETURN -1;
 
     IF EXISTS (
-        SELECT 1
-        FROM Users
-        WHERE user_id = @customer_id
-          AND account_status = 'Blacklisted'
+        SELECT * FROM Users
+        WHERE user_id = @customer_id AND account_status = 'Blacklisted'
     )
         RETURN -3;
 
-    IF EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
-          AND role = 'Zone Admin'
-    )
-    AND NOT EXISTS (
-        SELECT 1
-        FROM Address AD
-        INNER JOIN Admin A
-            ON AD.zone_id = A.zone_id
-        WHERE A.admin_id = @admin_id
-          AND AD.customer_id = @customer_id
-    )
-        RETURN -3;
+    IF EXISTS (SELECT * FROM Voucher WHERE promo_code = @promo_code)
+        RETURN -2;
 
-    IF @amount <= 0
-        RETURN -1;
-
-    IF @is_percentage = 1 AND @amount > 100
+    IF @amount <= 0 OR (@is_percentage = 1 AND (@amount < 1 OR @amount > 100))
         RETURN -1;
 
     IF @expiry_date < CAST(GETDATE() AS DATE)
         RETURN -1;
-
-    IF EXISTS (
-        SELECT 1
-        FROM Voucher
-        WHERE promo_code = @promo_code
-    )
-        RETURN -2;
 
     INSERT INTO Voucher
         (promo_code, is_percentage, amount, expiry_date, customer_id)
@@ -1272,210 +1356,130 @@ BEGIN
 END;
 GO
 
-
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Blacklist_Customer
     @customer_id INT,
     @admin_id INT,
     @reason VARCHAR(255)
 AS
 BEGIN
+    IF @customer_id IS NULL OR @admin_id IS NULL OR @reason IS NULL
+       OR @reason = ''
+        RETURN -1;
 
     IF NOT EXISTS (
-        SELECT 1
-        FROM Customer
+        SELECT * FROM Customer
         WHERE customer_id = @customer_id
     )
         RETURN -1;
 
-
+    IF NOT EXISTS (
+        SELECT * FROM Admin
+        WHERE admin_id = @admin_id
+    )
+        RETURN -3;
 
     IF EXISTS (
-        SELECT 1
-        FROM Users
+        SELECT * FROM Admin
+        WHERE admin_id = @admin_id
+          AND role = 'Zone Admin'
+    )
+    BEGIN
+        IF NOT EXISTS (
+            SELECT *
+            FROM Address AD
+            JOIN Admin A ON A.zone_id = AD.zone_id
+            WHERE A.admin_id = @admin_id
+              AND AD.customer_id = @customer_id
+        )
+            RETURN -3;
+    END;
+
+    IF EXISTS (
+        SELECT * FROM Users
         WHERE user_id = @customer_id
           AND account_status = 'Blacklisted'
     )
         RETURN -4;
 
+    DECLARE @order_id INT;
+    DECLARE @last_order_id INT = 0;
 
-    IF NOT EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
+    BEGIN TRANSACTION;
+
+    WHILE EXISTS (
+        SELECT *
+        FROM Orders O
+        JOIN Cart C ON C.cart_id = O.cart_id
+        WHERE C.customer_id = @customer_id
+          AND O.order_id > @last_order_id
+          AND O.status NOT IN ('Cancelled', 'Delivered')
+          AND NOT EXISTS (
+              SELECT *
+              FROM SubOrder S
+              WHERE S.order_id = O.order_id
+                AND S.status IN ('Picked Up', 'Delivered')
+          )
     )
-        RETURN -3;
+    BEGIN
+        SELECT TOP 1 @order_id = O.order_id
+        FROM Orders O
+        JOIN Cart C ON C.cart_id = O.cart_id
+        WHERE C.customer_id = @customer_id
+          AND O.order_id > @last_order_id
+          AND O.status NOT IN ('Cancelled', 'Delivered')
+          AND NOT EXISTS (
+              SELECT *
+              FROM SubOrder S
+              WHERE S.order_id = O.order_id
+                AND S.status IN ('Picked Up', 'Delivered')
+          )
+        ORDER BY O.order_id;
 
+        EXEC Cancel_Order @order_id;
 
-    IF EXISTS (
-        SELECT 1
-        FROM Admin
-        WHERE admin_id = @admin_id
-          AND role = 'Zone Admin'
-    )
-    AND NOT EXISTS (
-        SELECT 1
-        FROM Admin A
-        INNER JOIN Address AD
-            ON A.zone_id = AD.zone_id
-        WHERE A.admin_id = @admin_id
-          AND AD.customer_id = @customer_id
-    )
-        RETURN -3;
-
-
-
-    IF @reason IS NULL
-        RETURN -1;
-
+        SET @last_order_id = @order_id;
+    END;
 
     UPDATE Users
     SET account_status = 'Blacklisted'
     WHERE user_id = @customer_id;
 
-    INSERT INTO Blacklist
-        (customer_id, admin_id, reason)
-    VALUES
-        (@customer_id, @admin_id, @reason);
-
-
-    DECLARE @total_refund DECIMAL(10,2);
-
-SELECT @total_refund = SUM(P.amount - P.refunded_amount)
-FROM Cart CT
-INNER JOIN Orders O  ON CT.cart_id = O.cart_id
-INNER JOIN Payment P ON O.order_id = P.order_id
-WHERE CT.customer_id = @customer_id
-  AND O.status <> 'Cancelled'
-  AND P.method <> 'Cash'
-  AND NOT EXISTS (
-      SELECT 1
-      FROM SubOrder S
-      WHERE S.order_id = O.order_id
-        AND S.status IN ('Picked Up', 'Delivered')
-  );
-
-IF @total_refund > 0
-    UPDATE Customer
-    SET wallet_balance = wallet_balance + @total_refund
-    WHERE customer_id = @customer_id;
-
-
-    UPDATE P
-    SET refunded_amount = P.amount
-    FROM Payment P
-    INNER JOIN Orders O
-        ON P.order_id = O.order_id
-    INNER JOIN Cart CT
-        ON O.cart_id = CT.cart_id
-    WHERE CT.customer_id = @customer_id
-      AND O.status <> 'Cancelled'
-
-      AND NOT EXISTS (
-          SELECT 1
-          FROM SubOrder S
-          WHERE S.order_id = O.order_id
-            AND S.status IN ('Picked Up', 'Delivered')
-      );
-
-    UPDATE V
-    SET status = 'Unused'
-    FROM Voucher V
-    INNER JOIN Orders O
-        ON V.voucher_id = O.voucher_id
-    INNER JOIN Cart CT
-        ON O.cart_id = CT.cart_id
-    WHERE CT.customer_id = @customer_id
-      AND O.status <> 'Cancelled'
-
-      AND NOT EXISTS (
-          SELECT 1
-          FROM SubOrder S
-          WHERE S.order_id = O.order_id
-            AND S.status IN ('Picked Up', 'Delivered')
-      );
-
-
-
-    UPDATE O
-    SET voucher_id = NULL
-    FROM Orders O
-    INNER JOIN Cart CT
-        ON O.cart_id = CT.cart_id
-    WHERE CT.customer_id = @customer_id
-      AND O.status <> 'Cancelled'
-
-      AND NOT EXISTS (
-          SELECT 1
-          FROM SubOrder S
-          WHERE S.order_id = O.order_id
-            AND S.status IN ('Picked Up', 'Delivered')
-      );
-
-
-    UPDATE S
-    SET status = 'Cancelled'
-    FROM SubOrder S
-    INNER JOIN Orders O
-        ON S.order_id = O.order_id
-    INNER JOIN Cart CT
-        ON O.cart_id = CT.cart_id
-    WHERE CT.customer_id = @customer_id
-      AND O.status <> 'Cancelled'
-
-      AND NOT EXISTS (
-          SELECT 1
-          FROM SubOrder S2
-          WHERE S2.order_id = O.order_id
-            AND S2.status IN ('Picked Up', 'Delivered')
-      );
-
-    UPDATE O
-    SET status = 'Cancelled'
-    FROM Orders O
-    INNER JOIN Cart CT
-        ON O.cart_id = CT.cart_id
-    WHERE CT.customer_id = @customer_id
-      AND O.status <> 'Cancelled'
-
-      AND NOT EXISTS (
-          SELECT 1
-          FROM SubOrder S
-          WHERE S.order_id = O.order_id
-            AND S.status IN ('Picked Up', 'Delivered')
-      );
+    INSERT INTO Blacklist (customer_id, admin_id, reason)
+    VALUES (@customer_id, @admin_id, @reason);
 
     DELETE FROM Voucher
     WHERE customer_id = @customer_id
       AND status = 'Unused';
 
+    COMMIT TRANSACTION;
 
     RETURN 0;
-
 END;
 GO
 
-
+-- Student: Abdelrahman El Mallah (64-6677)
 CREATE PROCEDURE Lift_Customer_Blacklist
     @customer_id INT,
     @admin_id INT
 AS
 BEGIN
+    IF @customer_id IS NULL OR @admin_id IS NULL
+        RETURN -1;
 
     IF NOT EXISTS (
-        SELECT 1
-        FROM Blacklist
+        SELECT * FROM Blacklist
         WHERE customer_id = @customer_id
     )
         RETURN -4;
 
     IF NOT EXISTS (
-        SELECT 1
-        FROM Blacklist
-        WHERE customer_id = @customer_id
-          AND admin_id = @admin_id
+        SELECT * FROM Blacklist
+        WHERE customer_id = @customer_id AND admin_id = @admin_id
     )
         RETURN -3;
 
+    BEGIN TRANSACTION;
 
     UPDATE Users
     SET account_status = 'Active'
@@ -1484,15 +1488,12 @@ BEGIN
     DELETE FROM Blacklist
     WHERE customer_id = @customer_id;
 
-
+    COMMIT TRANSACTION;
     RETURN 0;
-
 END;
 GO
 
---functions to be dropped:
-
-
+-- Student: Hamza Hassouna (64-11102)
 CREATE FUNCTION ZoneOrderReport
 (
     @zone_id INT,
@@ -1544,6 +1545,7 @@ RETURN
 GO
 
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION TopRiders
 (
     @from_date DATE,
@@ -1596,6 +1598,7 @@ RETURN
 );
 GO
 
+-- Student: Hamza Hassouna (64-11102)
 CREATE FUNCTION Daily_Revenue_Report 
 (
     @report_date DATE
@@ -1631,6 +1634,7 @@ RETURN
 );
 GO
 
+-- Student: Hana Mostafa (64-2052)
 CREATE PROCEDURE Register_Business
     @partner_id INT,
     @name VARCHAR(100),
@@ -1830,6 +1834,7 @@ END;
 GO
 
 
+-- Student: Hana Mostafa (64-2052)
 CREATE PROCEDURE Update_Business_Info
     @business_id INT,
     @opening_hour TIME,
@@ -1846,11 +1851,9 @@ BEGIN
         RETURN -1;
 
 
-    UPDATE Business
-    SET opening_hour = @opening_hour,
-        closing_hour = @closing_hour,
-        link_website = @link_website
-    WHERE business_id = @business_id;
+    IF @phone IS NULL
+       OR @phone NOT LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+        RETURN -1;
 
     IF EXISTS (
         SELECT 1
@@ -1859,6 +1862,12 @@ BEGIN
           AND phone = @phone
     )
         RETURN -2;
+
+    UPDATE Business
+    SET opening_hour = @opening_hour,
+        closing_hour = @closing_hour,
+        link_website = @link_website
+    WHERE business_id = @business_id;
 
     INSERT INTO Business_Phone
         (business_id, phone)
@@ -1871,6 +1880,7 @@ BEGIN
 END;
 GO
 
+-- Student: Hana Mostafa (64-2052)
 CREATE PROCEDURE Upsert_Product
     @business_id INT,
     @product_id INT,
@@ -1946,6 +1956,14 @@ BEGIN
             RETURN -3;
 
 
+        IF EXISTS (
+            SELECT 1
+            FROM Product
+            WHERE product_id = @product_id
+              AND discount_amount > @price * 0.5
+        )
+            RETURN -1;
+
         UPDATE Product
         SET name = @name,
             description = @description,
@@ -1963,6 +1981,7 @@ END;
 GO
 
 
+-- Student: Hana Mostafa (64-2052)
 CREATE PROCEDURE Toggle_Product_Status
     @product_id INT,
     @is_available BIT
@@ -1998,6 +2017,7 @@ BEGIN
 END;
 GO
 
+-- Student: Hana Mostafa (64-2052)
 CREATE PROCEDURE Set_Product_Promotion
     @product_id INT,
     @discount_amount DECIMAL(10,2)
@@ -2035,7 +2055,7 @@ END;
 GO
 
 
---to be droped :
+-- Student: Hana Mostafa (64-2052)
 CREATE FUNCTION BusinessSalesReport
 (
     @business_id INT,
@@ -2076,6 +2096,7 @@ RETURN
 GO
 
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION BusinessFeedbackOverview
 (
     @business_id INT
@@ -2103,12 +2124,16 @@ RETURN
 );
 GO
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Add_Customer_Address
     @customer_id INT,
     @description VARCHAR(150),
     @zone_id INT
 AS
 BEGIN
+
+    IF @description IS NULL OR @description = ''
+        RETURN -1;
 
     IF NOT EXISTS (
         SELECT 1
@@ -2141,6 +2166,7 @@ END;
 GO
 
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Update_Delete_Customer_Address
     @customer_id INT,
     @address_id INT,
@@ -2197,7 +2223,7 @@ BEGIN
             FROM Cart
             WHERE address_id = @address_id
         )
-            RETURN -3;
+            RETURN -4;
 
 
         DELETE FROM Address
@@ -2216,6 +2242,7 @@ END;
 GO
 
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Change_Active_Address
     @customer_id INT,
     @new_address_id INT
@@ -2247,6 +2274,7 @@ END;
 GO
 
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Add_Card
     @customer_id INT,
     @card_no CHAR(16),
@@ -2254,6 +2282,12 @@ CREATE PROCEDURE Add_Card
     @expiration_date DATE
 AS
 BEGIN
+
+    IF @expiration_date < CAST(GETDATE() AS DATE)
+        RETURN -1;
+
+    IF @card_no NOT LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+        RETURN -1;
 
     IF NOT EXISTS (
         SELECT 1
@@ -2293,6 +2327,7 @@ END;
 GO
 
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Create_Cart
     @customer_id INT
 AS
@@ -2345,6 +2380,7 @@ GO
 
 
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Add_To_Cart
     @cart_id INT,
     @product_id INT,
@@ -2365,7 +2401,7 @@ BEGIN
         WHERE cart_id = @cart_id
           AND status = 'Active'
     )
-        RETURN -1;
+        RETURN -4;
 
     IF NOT EXISTS (
         SELECT 1
@@ -2377,6 +2413,16 @@ BEGIN
 
     IF @quantity <= 0
         RETURN -1;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Product P
+        INNER JOIN Business B
+            ON P.business_id = B.business_id
+        WHERE P.product_id = @product_id
+          AND (P.is_available = 0 OR B.status <> 'Active')
+    )
+        RETURN -4;
 
     SELECT
         @customer_id = customer_id,
@@ -2392,7 +2438,7 @@ BEGIN
           AND customer_id = @customer_id
           AND is_active = 1
     )
-        RETURN -3;
+        RETURN -4;
 
     SELECT @zone_id = zone_id
     FROM Address
@@ -2462,6 +2508,7 @@ END;
 GO
 
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Remove_From_Cart
     @cart_id INT,
     @product_id INT
@@ -2474,7 +2521,7 @@ BEGIN
         WHERE cart_id = @cart_id
           AND status = 'Active'
     )
-        RETURN -1;
+        RETURN -4;
 
     IF NOT EXISTS (
         SELECT 1
@@ -2496,7 +2543,7 @@ END;
 GO
 
 
---functionnnnnnnn to be dropped
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE FUNCTION Calculate_Voucher_Discount
 (
     @voucher_id INT,
@@ -2510,6 +2557,9 @@ BEGIN
     DECLARE @amount DECIMAL(10,2);
     DECLARE @is_percentage BIT;
 
+
+    IF @order_subtotal < 0
+        RETURN -1;
 
     IF @voucher_id IS NULL
         RETURN 0;
@@ -2547,6 +2597,7 @@ BEGIN
 END;
 GO
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Checkout_Cart
     @cart_id INT,
     @voucher_id INT,
@@ -2619,7 +2670,7 @@ BEGIN
           AND customer_id = @customer_id
           AND is_active = 1
     )
-        RETURN -3;
+        RETURN -4;
 
 
     SELECT @zone_id = zone_id
@@ -2986,6 +3037,7 @@ BEGIN
 END;
 GO
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Cancel_Order
     @order_id INT
 AS
@@ -3069,6 +3121,7 @@ BEGIN
 END;
 GO
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE PROCEDURE Reorder
     @order_id INT,
     @address_id INT
@@ -3179,6 +3232,7 @@ BEGIN
 END;
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE PROCEDURE Submit_Feedback
     @suborder_id INT,
     @headline VARCHAR(100),
@@ -3224,6 +3278,7 @@ BEGIN
 END;
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE PROCEDURE Rate_Rider
     @suborder_id INT,
     @rider_rating INT
@@ -3267,6 +3322,7 @@ BEGIN
 END;
 GO
 
+-- Student: Habiba Ahmed Nader (64-8132)
 CREATE FUNCTION My_Order_History
 (
     @customer_id INT
@@ -3314,6 +3370,7 @@ RETURN
 );
 GO
 
+-- Student: Hana Mostafa (64-2052)
 CREATE PROCEDURE Toggle_Favorite
     @customer_id INT,
     @item_id INT,
@@ -3393,6 +3450,7 @@ BEGIN
 END;
 GO
 
+-- Student: Hana Mostafa (64-2052)
 CREATE FUNCTION My_Favorites
 (
     @customer_id INT
@@ -3434,6 +3492,7 @@ RETURN
 );
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION Recommended_Products ( @customer_id INT)
 RETURNS TABLE
 AS
@@ -3484,6 +3543,7 @@ RETURN
 );
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE PROCEDURE Set_Rider_Availability
     @rider_id INT,
     @is_available BIT
@@ -3497,7 +3557,7 @@ BEGIN
         FROM Rider
         WHERE rider_id = @rider_id
     )
-        RETURN -1;
+        RETURN -3;
     UPDATE Rider
     SET is_available = @is_available
     WHERE rider_id = @rider_id;
@@ -3508,6 +3568,7 @@ END;
 GO
 
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION My_Active_Deliveries ( @rider_id INT )
 RETURNS TABLE
 AS
@@ -3536,6 +3597,7 @@ RETURN
 );
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE PROCEDURE Mark_Picked_Up
     @delivery_id INT
 AS
@@ -3582,6 +3644,53 @@ BEGIN
 END;
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
+CREATE PROCEDURE Mark_Delivered
+    @delivery_id INT
+AS
+BEGIN
+    DECLARE @suborder_id INT;
+    DECLARE @order_id INT;
+    DECLARE @now DATETIME = GETDATE();
+
+    IF NOT EXISTS (SELECT 1 FROM Delivery WHERE delivery_id = @delivery_id)
+        RETURN -1;
+
+    SELECT @suborder_id = D.suborder_id,
+           @order_id = S.order_id
+    FROM Delivery D
+    INNER JOIN SubOrder S ON D.suborder_id = S.suborder_id
+    WHERE D.delivery_id = @delivery_id;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM SubOrder
+        WHERE suborder_id = @suborder_id AND status = 'Picked Up'
+    )
+        RETURN -4;
+
+    UPDATE SubOrder
+    SET status = 'Delivered'
+    WHERE suborder_id = @suborder_id;
+
+    UPDATE Delivery
+    SET delivered_at = @now,
+        tracking_time = DATEDIFF(MINUTE, picked_up_at, @now)
+    WHERE delivery_id = @delivery_id;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM SubOrder
+        WHERE order_id = @order_id
+          AND status NOT IN ('Cancelled', 'Delivered')
+    )
+        UPDATE Orders SET status = 'Delivered' WHERE order_id = @order_id;
+    ELSE
+        UPDATE Orders SET status = 'In Progress' WHERE order_id = @order_id;
+
+    RETURN 0;
+END;
+GO
+
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION My_Earnings
 (
     @rider_id INT,
@@ -3610,6 +3719,7 @@ RETURN
 GO
 
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION My_Rating_Summary
 (
     @rider_id INT
@@ -3636,6 +3746,7 @@ RETURN
 GO
 
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION My_Delivery_History
 (
     @rider_id INT,
@@ -3674,6 +3785,7 @@ RETURN
 GO
 
 
+-- Student: Hana Mostafa (64-2052)
 CREATE FUNCTION Search_Platform
 (
     @customer_id INT,
@@ -3707,6 +3819,7 @@ GO
 
 
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION Reconcile_Order_Totals()
 RETURNS TABLE
 AS
@@ -3750,6 +3863,7 @@ RETURN
 GO
 
 
+-- Student: Hana Mostafa (64-2052)
 CREATE FUNCTION Nearby_Businesses_By_Category
 (
     @address_id INT,
@@ -3813,6 +3927,7 @@ RETURN
 );
 GO
 
+-- Student: Abdelrhman Effat (64-6731)
 CREATE FUNCTION Platform_Health_Snapshot()
 RETURNS TABLE
 AS
