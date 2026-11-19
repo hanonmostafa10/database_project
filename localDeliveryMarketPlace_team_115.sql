@@ -560,7 +560,7 @@ BEGIN
     VALUES
         (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
 
-    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
+    SELECT @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
     VALUES (@uid, @phone);
@@ -608,7 +608,7 @@ BEGIN
     VALUES
         (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
 
-    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
+    SELECT @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
     VALUES (@uid, @phone);
@@ -673,7 +673,7 @@ BEGIN
     VALUES
         (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
 
-    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
+    SELECT @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
     VALUES (@uid, @phone);
@@ -705,7 +705,7 @@ BEGIN
           AND u.password = @password 
           AND u.account_status = 'Active'
     )
-        SET @res = 1;
+        SELECT @res = 1;
 
     RETURN @res;
 END;
@@ -729,7 +729,7 @@ BEGIN
           AND u.password = @password 
           AND u.account_status = 'Active'
     )
-        SET @res = 1;
+        SELECT @res = 1;
 
     RETURN @res;
 END;
@@ -753,7 +753,7 @@ BEGIN
           AND u.password = @password 
           AND u.account_status = 'Active'
     )
-        SET @res = 1;
+        SELECT @res = 1;
 
     RETURN @res;
 END;
@@ -777,7 +777,7 @@ BEGIN
           AND u.password = @password 
           AND u.account_status = 'Active'
     )
-        SET @res = 1;
+        SELECT @res = 1;
 
     RETURN @res;
 END;
@@ -792,7 +792,7 @@ CREATE PROCEDURE Change_Password
     @success BIT OUTPUT
 AS
 BEGIN
-    SET @success = 0;
+    SELECT @success = 0;
 
     IF @user_id IS NULL OR @old_password IS NULL
        OR @new_password IS NULL OR @new_password_repeat IS NULL
@@ -801,17 +801,18 @@ BEGIN
     IF @new_password != @new_password_repeat OR @new_password = @old_password
         RETURN -1;
 
+    IF NOT EXISTS (
+        SELECT * FROM Users
+        WHERE user_id = @user_id AND password = @old_password
+    )
+        RETURN -1;
+
     UPDATE Users
     SET password = @new_password
-    WHERE user_id = @user_id AND password = @old_password;
+    WHERE user_id = @user_id;
 
-    IF @@ROWCOUNT = 1
-    BEGIN
-        SET @success = 1;
-        RETURN 0;
-    END;
-
-    RETURN -1;
+    SELECT @success = 1;
+    RETURN 0;
 END;
 GO
 
@@ -874,7 +875,7 @@ BEGIN
     VALUES
         (@first_name, @middle_name, @last_name, @username, @password, @email, @dob);
 
-    SET @uid = CAST(SCOPE_IDENTITY() AS INT);
+    SELECT @uid = CAST(SCOPE_IDENTITY() AS INT);
 
     INSERT INTO User_Phone (user_id, phone)
     VALUES (@uid, @phone);
@@ -1438,7 +1439,7 @@ BEGIN
 
         EXEC Cancel_Order @order_id;
 
-        SET @last_order_id = @order_id;
+        SELECT @last_order_id = @order_id;
     END;
 
     UPDATE Users
@@ -1652,7 +1653,6 @@ CREATE PROCEDURE Register_Business
 AS
 BEGIN
 
-
     IF NOT EXISTS (
         SELECT 1
         FROM Partner
@@ -1671,6 +1671,9 @@ BEGIN
 
     IF @expected_delivery_time <= 0
         RETURN -1;
+
+    IF @phone IS NULL OR @phone NOT LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+    RETURN -1;
 
 
     IF @business_type NOT IN ('Restaurant', 'Pharmacy')
@@ -1796,7 +1799,7 @@ BEGIN
             );
 
 
-        SET @business_id = SCOPE_IDENTITY();
+        SELECT @business_id = SCOPE_IDENTITY();
 
 
         INSERT INTO Business_Phone
@@ -1891,6 +1894,8 @@ CREATE PROCEDURE Upsert_Product
     @is_available BIT
 AS
 BEGIN
+
+    IF @name IS NULL OR @category IS NULL OR @price IS NULL RETURN -1;
 
     IF NOT EXISTS (
         SELECT 1
@@ -2109,11 +2114,11 @@ RETURN
         AVG(CAST(F.rating AS DECIMAL(4,2))) AS avg_rating,
         COUNT(F.feedback_id) AS number_of_feedbacks,
 
-        SUM(CASE WHEN F.rating = 5 THEN 1 ELSE 0 END) AS five_star,
-        SUM(CASE WHEN F.rating = 4 THEN 1 ELSE 0 END) AS four_star,
-        SUM(CASE WHEN F.rating = 3 THEN 1 ELSE 0 END) AS three_star,
-        SUM(CASE WHEN F.rating = 2 THEN 1 ELSE 0 END) AS two_star,
-        SUM(CASE WHEN F.rating = 1 THEN 1 ELSE 0 END) AS one_star
+        COUNT(CASE WHEN F.rating = 5 THEN 1 END) AS five_star,
+        COUNT(CASE WHEN F.rating = 4 THEN 1 END) AS four_star,
+        COUNT(CASE WHEN F.rating = 3 THEN 1 END) AS three_star,
+        COUNT(CASE WHEN F.rating = 2 THEN 1 END) AS two_star,
+        COUNT(CASE WHEN F.rating = 1 THEN 1 END) AS one_star
 
     FROM SubOrder S
 
@@ -2282,6 +2287,7 @@ CREATE PROCEDURE Add_Card
     @expiration_date DATE
 AS
 BEGIN
+    IF @card_no IS NULL OR @card_holder_name IS NULL OR @expiration_date IS NULL RETURN -1;
 
     IF @expiration_date < CAST(GETDATE() AS DATE)
         RETURN -1;
@@ -2394,6 +2400,7 @@ BEGIN
     DECLARE @zone_id INT;
     DECLARE @old_quantity INT;
 
+    IF @quantity IS NULL RETURN -1;
 
     IF NOT EXISTS (
         SELECT 1
@@ -2582,14 +2589,14 @@ BEGIN
 
 
     IF @is_percentage = 1
-        SET @discount = @order_subtotal * @amount / 100;
+        SELECT @discount = @order_subtotal * @amount / 100;
 
 
     ELSE
-        SET @discount = @amount;
+        SELECT @discount = @amount;
 
     IF @discount > @order_subtotal
-        SET @discount = @order_subtotal;
+        SELECT @discount = @order_subtotal;
 
 
     RETURN @discount;
@@ -2622,6 +2629,7 @@ BEGIN
 
     DECLARE @now TIME;
 
+    IF @payment_method IS NULL RETURN -1;
 
     IF NOT EXISTS (
         SELECT 1
@@ -2714,7 +2722,7 @@ BEGIN
         RETURN -5;
        
 
-    SET @now = CAST(GETDATE() AS TIME);
+    SELECT @now = CAST(GETDATE() AS TIME);
 
 
     IF EXISTS (
@@ -2812,14 +2820,14 @@ BEGIN
     GROUP BY Z.delivery_fee;
 
 
-    SET @discount =
+    SELECT @discount =
        dbo.Calculate_Voucher_Discount(
             @voucher_id,
             @subtotal
         );
 
 
-    SET @total_amount =
+    SELECT @total_amount =
         @subtotal
         + @delivery_total
         - @discount;
@@ -2868,7 +2876,7 @@ BEGIN
     );
 
 
-    SET @order_id = SCOPE_IDENTITY();
+    SELECT @order_id = SCOPE_IDENTITY();
 
 
     INSERT INTO SubOrder
@@ -2916,8 +2924,8 @@ BEGIN
 
     BEGIN
 
-        SET @suborder_id = NULL;
-        SET @rider_id = NULL;
+        SELECT @suborder_id = NULL;
+        SELECT @rider_id = NULL;
 
 
         SELECT TOP 1
@@ -3208,7 +3216,7 @@ BEGIN
     VALUES
         ('Active', @customer_id, @address_id);
 
-    SET @new_cart_id = SCOPE_IDENTITY();
+    SELECT @new_cart_id = SCOPE_IDENTITY();
 
 
     INSERT INTO CartItem
@@ -3241,9 +3249,8 @@ CREATE PROCEDURE Submit_Feedback
 AS
 BEGIN
 
-    IF @headline IS NULL OR @rating IS NULL
-       OR @rating < 1 OR @rating > 5
-        RETURN -1;
+    IF @headline IS NULL OR @headline = '' OR @rating IS NULL OR @rating < 1 OR @rating > 5
+     RETURN -1;
 
     IF NOT EXISTS (
         SELECT 1
@@ -3674,7 +3681,7 @@ BEGIN
 
     UPDATE Delivery
     SET delivered_at = @now,
-        tracking_time = DATEDIFF(MINUTE, picked_up_at, @now)
+        tracking_time = CAST(CAST(@now - picked_up_at AS FLOAT) * 24 * 60 AS INT)
     WHERE delivery_id = @delivery_id;
 
     IF NOT EXISTS (
@@ -3715,6 +3722,8 @@ RETURN
       AND S.status = 'Delivered'
       AND CAST(D.delivered_at AS DATE)
           BETWEEN @from_date AND @to_date
+
+    HAVING @from_date <= @to_date
 );
 GO
 
