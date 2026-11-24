@@ -67,17 +67,82 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Admin.master" />
+    <Content Include="AdminAccounts.aspx" />
+    <Content Include="AdminBusinesses.aspx" />
+    <Content Include="AdminCustomers.aspx" />
+    <Content Include="AdminInsights.aspx" />
+    <Content Include="AdminZones.aspx" />
     <Content Include="AdminHome.aspx" />
+    <Content Include="Content\site.css" />
+    <Content Include="Default.aspx" />
     <Content Include="Login.aspx" />
+    <Content Include="Register.aspx" />
     <Content Include="Web.config" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Admin.master.cs">
+      <DependentUpon>Admin.master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Admin.master.designer.cs">
+      <DependentUpon>Admin.master</DependentUpon>
+    </Compile>
+    <Compile Include="AdminAccounts.aspx.cs">
+      <DependentUpon>AdminAccounts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AdminAccounts.aspx.designer.cs">
+      <DependentUpon>AdminAccounts.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="AdminBusinesses.aspx.cs">
+      <DependentUpon>AdminBusinesses.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AdminBusinesses.aspx.designer.cs">
+      <DependentUpon>AdminBusinesses.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="AdminCustomers.aspx.cs">
+      <DependentUpon>AdminCustomers.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AdminCustomers.aspx.designer.cs">
+      <DependentUpon>AdminCustomers.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="AdminInsights.aspx.cs">
+      <DependentUpon>AdminInsights.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AdminInsights.aspx.designer.cs">
+      <DependentUpon>AdminInsights.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="AdminZones.aspx.cs">
+      <DependentUpon>AdminZones.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AdminZones.aspx.designer.cs">
+      <DependentUpon>AdminZones.aspx</DependentUpon>
+    </Compile>
     <Compile Include="AdminHome.aspx.cs">
       <DependentUpon>AdminHome.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="AdminHome.aspx.designer.cs">
       <DependentUpon>AdminHome.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Default.aspx.cs">
+      <DependentUpon>Default.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Default.aspx.designer.cs">
+      <DependentUpon>Default.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Register.aspx.cs">
+      <DependentUpon>Register.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Register.aspx.designer.cs">
+      <DependentUpon>Register.aspx</DependentUpon>
     </Compile>
     <Compile Include="Login.aspx.cs">
       <DependentUpon>Login.aspx</DependentUpon>

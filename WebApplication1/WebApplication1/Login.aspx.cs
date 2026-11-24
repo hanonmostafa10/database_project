@@ -9,6 +9,13 @@ namespace WebApplication1
     {
         protected void Page_Load(object sender, EventArgs e)
         {
+            if (!IsPostBack)
+            {
+                // Preselect the user type chosen on the start page
+                string type = Request.QueryString["type"];
+                if (type == "Customer" || type == "Partner" || type == "Rider" || type == "Admin")
+                    usertype.SelectedValue = type;
+            }
         }
 
         protected void login(object sender, EventArgs e)
@@ -17,7 +24,7 @@ namespace WebApplication1
             string connStr = WebConfigurationManager.ConnectionStrings["DeliveryDB"].ToString();
             SqlConnection conn = new SqlConnection(connStr);
 
-            string user = username.Text;
+            string user = username.Text.Trim();
             string pass = password.Text;
             string type = usertype.SelectedValue;
 
@@ -27,28 +34,41 @@ namespace WebApplication1
                 return;
             }
 
-            // Call the login function of this user type
-            SqlCommand loginFunc = new SqlCommand("SELECT dbo." + type + "LoginValidation(@username, @password)", conn);
-            loginFunc.Parameters.Add(new SqlParameter("@username", user));
-            loginFunc.Parameters.Add(new SqlParameter("@password", pass));
-
-            conn.Open();
-            bool success = Convert.ToBoolean(loginFunc.ExecuteScalar());
-
-            if (!success)
+            int id;
+            try
             {
-                conn.Close();
-                msg.Text = "Wrong username or password";
+                // Call the login function of this user type
+                SqlCommand loginFunc = new SqlCommand("SELECT dbo." + type + "LoginValidation(@username, @password)", conn);
+                loginFunc.Parameters.Add(new SqlParameter("@username", user));
+                loginFunc.Parameters.Add(new SqlParameter("@password", pass));
+
+                conn.Open();
+                bool success = Convert.ToBoolean(loginFunc.ExecuteScalar());
+
+                if (!success)
+                {
+                    msg.Text = "Wrong username or password. Check that you chose the right account type ("
+                               + type + ") and try again.";
+                    return;
+                }
+
+                // Get the user id
+                SqlCommand idFunc = new SqlCommand("SELECT dbo.h_GetUserId(@username)", conn);
+                idFunc.Parameters.Add(new SqlParameter("@username", user));
+                id = Convert.ToInt32(idFunc.ExecuteScalar());
+            }
+            catch (SqlException)
+            {
+                msg.Text = "We could not reach the database right now. Please try again in a moment.";
                 return;
             }
-
-            // Get the user id
-            SqlCommand idFunc = new SqlCommand("SELECT dbo.h_GetUserId(@username)", conn);
-            idFunc.Parameters.Add(new SqlParameter("@username", user));
-            int id = Convert.ToInt32(idFunc.ExecuteScalar());
-            conn.Close();
+            finally
+            {
+                conn.Close();
+            }
 
             // Remember who is signed in
+            Session.Clear();
             Session["user"] = id;
             Session["type"] = type;
 

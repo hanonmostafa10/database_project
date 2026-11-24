@@ -1,0 +1,35 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Admin.master.cs" Inherits="WebApplication1.AdminMaster" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>Admin - Local Delivery Marketplace</title>
+    <link href="Content/site.css" rel="stylesheet" />
+    <asp:ContentPlaceHolder ID="head" runat="server"></asp:ContentPlaceHolder>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div class="topbar">
+            <a class="brand" href="AdminHome.aspx">Local Delivery Marketplace &middot; Admin</a>
+            <div class="user">
+                <asp:Label ID="whoAmI" runat="server"></asp:Label>
+                <asp:Button ID="logoutBtn" runat="server" Text="Log out" CssClass="btn-logout" OnClick="logout" />
+            </div>
+        </div>
+
+        <%-- Admin menu: every admin page is reached from here, never by typing a URL --%>
+        <div class="nav">
+            <asp:HyperLink ID="navHome" runat="server" NavigateUrl="~/AdminHome.aspx">Dashboard</asp:HyperLink>
+            <asp:HyperLink ID="navBusinesses" runat="server" NavigateUrl="~/AdminBusinesses.aspx">Businesses</asp:HyperLink>
+            <asp:HyperLink ID="navCustomers" runat="server" NavigateUrl="~/AdminCustomers.aspx">Customers &amp; vouchers</asp:HyperLink>
+            <asp:HyperLink ID="navZones" runat="server" NavigateUrl="~/AdminZones.aspx">Zones</asp:HyperLink>
+            <asp:HyperLink ID="navInsights" runat="server" NavigateUrl="~/AdminInsights.aspx">Insights</asp:HyperLink>
+            <asp:HyperLink ID="navAccounts" runat="server" NavigateUrl="~/AdminAccounts.aspx">Admin accounts</asp:HyperLink>
+        </div>
+
+        <div class="container">
+            <asp:ContentPlaceHolder ID="MainContent" runat="server"></asp:ContentPlaceHolder>
+        </div>
+    </form>
+</body>
+</html>
