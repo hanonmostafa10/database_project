@@ -3,3 +3,15 @@
 ################################################################################
 
 /.vs
+.vs/
+
+# Build output
+bin/
+obj/
+
+# NuGet packages (restored automatically)
+packages/
+
+# Personal Visual Studio settings
+*.user
+*.suo
