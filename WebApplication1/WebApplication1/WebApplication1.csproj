@@ -77,6 +77,13 @@
     <Content Include="Content\site.css" />
     <Content Include="Default.aspx" />
     <Content Include="Login.aspx" />
+    <Content Include="Partner.master" />
+    <Content Include="Rider.master" />
+    <Content Include="PartnerHome.aspx" />
+    <Content Include="PartnerPerformance.aspx" />
+    <Content Include="PartnerProducts.aspx" />
+    <Content Include="RiderHome.aspx" />
+    <Content Include="RiderPerformance.aspx" />
     <Content Include="Register.aspx" />
     <Content Include="Web.config" />
   </ItemGroup>
@@ -136,6 +143,55 @@
     </Compile>
     <Compile Include="Default.aspx.designer.cs">
       <DependentUpon>Default.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Partner.master.cs">
+      <DependentUpon>Partner.master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Partner.master.designer.cs">
+      <DependentUpon>Partner.master</DependentUpon>
+    </Compile>
+    <Compile Include="Rider.master.cs">
+      <DependentUpon>Rider.master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Rider.master.designer.cs">
+      <DependentUpon>Rider.master</DependentUpon>
+    </Compile>
+    <Compile Include="PartnerHome.aspx.cs">
+      <DependentUpon>PartnerHome.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PartnerHome.aspx.designer.cs">
+      <DependentUpon>PartnerHome.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="PartnerPerformance.aspx.cs">
+      <DependentUpon>PartnerPerformance.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PartnerPerformance.aspx.designer.cs">
+      <DependentUpon>PartnerPerformance.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="PartnerProducts.aspx.cs">
+      <DependentUpon>PartnerProducts.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="PartnerProducts.aspx.designer.cs">
+      <DependentUpon>PartnerProducts.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="RiderHome.aspx.cs">
+      <DependentUpon>RiderHome.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="RiderHome.aspx.designer.cs">
+      <DependentUpon>RiderHome.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="RiderPerformance.aspx.cs">
+      <DependentUpon>RiderPerformance.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="RiderPerformance.aspx.designer.cs">
+      <DependentUpon>RiderPerformance.aspx</DependentUpon>
     </Compile>
     <Compile Include="Register.aspx.cs">
       <DependentUpon>Register.aspx</DependentUpon>

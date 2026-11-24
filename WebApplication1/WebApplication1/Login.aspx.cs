@@ -71,6 +71,7 @@ namespace WebApplication1
             Session.Clear();
             Session["user"] = id;
             Session["type"] = type;
+            Session["username"] = user;
 
             Response.Redirect(type + "Home.aspx");
         }

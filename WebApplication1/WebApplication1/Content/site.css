@@ -161,3 +161,36 @@ h3 { font-size: 16px; margin: 20px 0 8px; }
 .quick-links a:hover { border-color: #0b6e4f; background: #f4fbf8; }
 .quick-links a b { display: block; color: #0b6e4f; }
 .quick-links a span { font-size: 13px; color: #52606d; }
+
+/* Card with a title on the left and a button on the right */
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+.card-head h2, .card-head h1 { margin: 0; }
+.availability { display: flex; align-items: center; gap: 12px; }
+
+/* Label / value table (partner business details) */
+table.details { border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+table.details th { text-align: left; color: #52606d; font-weight: 600; padding: 6px 24px 6px 0; vertical-align: top; }
+table.details td { padding: 6px 0; }
+
+/* Rider delivery cards */
+.delivery { border: 1px solid #e4e7eb; border-radius: 8px; padding: 14px 16px; margin-top: 12px; }
+.delivery-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; margin-bottom: 8px; }
+.delivery-head .muted { margin-left: auto; }
+.delivery-body { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; font-size: 14px; }
+.delivery-body > div:first-child { flex: 1; min-width: 200px; }
+
+/* Journey: Assigned -> Picked up -> Delivered */
+.steps { display: flex; align-items: center; gap: 0; font-size: 12px; }
+.step { padding: 4px 10px; background: #e4e7eb; color: #7b8794; position: relative; }
+.step:first-child { border-radius: 12px 0 0 12px; }
+.step:last-child { border-radius: 0 12px 12px 0; }
+.step.done { background: #0b6e4f; color: #fff; }
+.step.current { background: #fff4e5; color: #8a5300; font-weight: 600; }
+
+/* Star rating bars */
+.stars { max-width: 420px; margin-top: 8px; }
+.star-row { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 4px 0; }
+.star-row span:first-child { width: 34px; color: #52606d; }
+.star-row span:last-child { width: 24px; text-align: right; }
+.bar { flex: 1; height: 10px; background: #e4e7eb; border-radius: 5px; overflow: hidden; }
+.bar div { height: 100%; background: #f5a623; }

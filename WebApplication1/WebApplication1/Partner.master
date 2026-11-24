@@ -1,0 +1,31 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Partner.master.cs" Inherits="WebApplication1.PartnerMaster" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>Partner - Local Delivery Marketplace</title>
+    <link href="Content/site.css" rel="stylesheet" />
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div class="topbar">
+            <a class="brand" href="PartnerHome.aspx">Local Delivery Marketplace &middot; Partner</a>
+            <div class="user">
+                <asp:Label ID="whoAmI" runat="server"></asp:Label>
+                <asp:Button ID="logoutBtn" runat="server" Text="Log out" CssClass="btn-logout" OnClick="logout" />
+            </div>
+        </div>
+
+        <%-- Partner menu: every partner page is reached from here --%>
+        <div class="nav">
+            <asp:HyperLink ID="navHome" runat="server" NavigateUrl="~/PartnerHome.aspx">My business</asp:HyperLink>
+            <asp:HyperLink ID="navProducts" runat="server" NavigateUrl="~/PartnerProducts.aspx">My products</asp:HyperLink>
+            <asp:HyperLink ID="navPerformance" runat="server" NavigateUrl="~/PartnerPerformance.aspx">My performance</asp:HyperLink>
+        </div>
+
+        <div class="container">
+            <asp:ContentPlaceHolder ID="MainContent" runat="server"></asp:ContentPlaceHolder>
+        </div>
+    </form>
+</body>
+</html>
