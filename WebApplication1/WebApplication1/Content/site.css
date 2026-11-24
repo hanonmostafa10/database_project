@@ -194,3 +194,43 @@ table.details td { padding: 6px 0; }
 .star-row span:last-child { width: 24px; text-align: right; }
 .bar { flex: 1; height: 10px; background: #e4e7eb; border-radius: 5px; overflow: hidden; }
 .bar div { height: 100%; background: #f5a623; }
+
+/* Customer pages */
+.stat-value.stat-text { font-size: 17px; padding-top: 6px; }
+input.qty { width: 64px !important; }
+.status-Placed { background: #e8f0fe; color: #1a56db; }
+.status-InProgress { background: #fff4e5; color: #8a5300; }
+.status-Delivered { background: #e6f4ea; color: #0b6e4f; }
+.status-Cancelled { background: #fdecea; color: #962d22; }
+
+.cart-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+               margin-top: 16px; padding-top: 14px; border-top: 1px solid #e4e7eb; }
+
+/* Checkout: the bill on the left, the payment on the right */
+.checkout { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; align-items: start; }
+.checkout .card { margin-bottom: 0; }
+table.bill { width: 100%; border-collapse: collapse; font-size: 14px; }
+table.bill td { padding: 5px 0; }
+table.bill td.num { text-align: right; white-space: nowrap; padding-left: 16px; }
+table.bill tr.bill-business td { font-weight: 600; padding-top: 14px; color: #0b6e4f; }
+table.bill tr.bill-sub td { border-top: 1px dashed #cbd2d9; font-weight: 600; }
+table.bill tr.bill-gap td { border-bottom: 2px solid #e4e7eb; padding: 6px 0; }
+table.bill tr.bill-discount td { color: #0b6e4f; }
+table.bill tr.bill-total td { font-size: 18px; font-weight: 700; border-top: 2px solid #1f2933; padding-top: 10px; }
+ul.problems { color: #962d22; }
+
+/* Orders and their parts */
+.order .order-total { text-align: right; }
+.part { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid #e4e7eb; font-size: 14px; }
+.part-main { flex: 1; min-width: 200px; }
+.part-eta { font-size: 13px; color: #8a5300; min-width: 160px; }
+.part-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rate { display: flex; gap: 6px; align-items: center; }
+.rate select { padding: 4px; }
+.step.cancelled { background: #fdecea; color: #962d22; border-radius: 12px; }
+.order-actions { margin-top: 12px; }
+
+@media (max-width: 760px) {
+    .checkout, .two-cols { grid-template-columns: 1fr; }
+    .row { flex-direction: column; gap: 0; }
+}

@@ -1,4 +1,4 @@
-<%@ Page Title="Insights" Language="C#" MasterPageFile="~/Admin.master" AutoEventWireup="true" CodeBehind="AdminInsights.aspx.cs" Inherits="WebApplication1.AdminInsights" %>
+﻿<%@ Page Title="Insights" Language="C#" MasterPageFile="~/Admin.master" AutoEventWireup="true" CodeBehind="AdminInsights.aspx.cs" Inherits="WebApplication1.AdminInsights" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
 

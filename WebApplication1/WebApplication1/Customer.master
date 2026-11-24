@@ -1,0 +1,35 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Customer.master.cs" Inherits="WebApplication1.CustomerMaster" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>Local Delivery Marketplace</title>
+    <link href="Content/site.css" rel="stylesheet" />
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div class="topbar">
+            <a class="brand" href="CustomerHome.aspx">Local Delivery Marketplace</a>
+            <div class="user">
+                <asp:Label ID="whoAmI" runat="server"></asp:Label>
+                <asp:Button ID="logoutBtn" runat="server" Text="Log out" CssClass="btn-logout" OnClick="logout" />
+            </div>
+        </div>
+
+        <%-- Customer menu: every customer page is reached from here --%>
+        <div class="nav">
+            <asp:HyperLink ID="navHome" runat="server" NavigateUrl="~/CustomerHome.aspx">Home</asp:HyperLink>
+            <asp:HyperLink ID="navBrowse" runat="server" NavigateUrl="~/CustomerBrowse.aspx">Browse</asp:HyperLink>
+            <asp:HyperLink ID="navCart" runat="server" NavigateUrl="~/CustomerCart.aspx">My cart</asp:HyperLink>
+            <asp:HyperLink ID="navOrders" runat="server" NavigateUrl="~/CustomerOrders.aspx">My orders</asp:HyperLink>
+            <asp:HyperLink ID="navFavorites" runat="server" NavigateUrl="~/CustomerFavorites.aspx">Favorites</asp:HyperLink>
+            <asp:HyperLink ID="navAddresses" runat="server" NavigateUrl="~/CustomerAddresses.aspx">My addresses</asp:HyperLink>
+            <asp:HyperLink ID="navCards" runat="server" NavigateUrl="~/CustomerCards.aspx">My cards</asp:HyperLink>
+        </div>
+
+        <div class="container">
+            <asp:ContentPlaceHolder ID="MainContent" runat="server"></asp:ContentPlaceHolder>
+        </div>
+    </form>
+</body>
+</html>

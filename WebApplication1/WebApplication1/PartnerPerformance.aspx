@@ -1,4 +1,4 @@
-<%@ Page Title="My performance" Language="C#" MasterPageFile="~/Partner.master" AutoEventWireup="true" CodeBehind="PartnerPerformance.aspx.cs" Inherits="WebApplication1.PartnerPerformance" %>
+﻿<%@ Page Title="My performance" Language="C#" MasterPageFile="~/Partner.master" AutoEventWireup="true" CodeBehind="PartnerPerformance.aspx.cs" Inherits="WebApplication1.PartnerPerformance" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
 

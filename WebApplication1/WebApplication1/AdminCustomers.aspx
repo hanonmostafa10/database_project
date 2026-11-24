@@ -1,4 +1,4 @@
-<%@ Page Title="Customers and vouchers" Language="C#" MasterPageFile="~/Admin.master" AutoEventWireup="true" CodeBehind="AdminCustomers.aspx.cs" Inherits="WebApplication1.AdminCustomers" %>
+﻿<%@ Page Title="Customers and vouchers" Language="C#" MasterPageFile="~/Admin.master" AutoEventWireup="true" CodeBehind="AdminCustomers.aspx.cs" Inherits="WebApplication1.AdminCustomers" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
 

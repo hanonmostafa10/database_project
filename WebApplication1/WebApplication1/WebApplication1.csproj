@@ -75,6 +75,16 @@
     <Content Include="AdminZones.aspx" />
     <Content Include="AdminHome.aspx" />
     <Content Include="Content\site.css" />
+    <Content Include="Customer.master" />
+    <Content Include="BusinessPage.aspx" />
+    <Content Include="CustomerAddresses.aspx" />
+    <Content Include="CustomerBrowse.aspx" />
+    <Content Include="CustomerCards.aspx" />
+    <Content Include="CustomerCart.aspx" />
+    <Content Include="CustomerCheckout.aspx" />
+    <Content Include="CustomerFavorites.aspx" />
+    <Content Include="CustomerHome.aspx" />
+    <Content Include="CustomerOrders.aspx" />
     <Content Include="Default.aspx" />
     <Content Include="Login.aspx" />
     <Content Include="Partner.master" />
@@ -136,6 +146,76 @@
     </Compile>
     <Compile Include="AdminHome.aspx.designer.cs">
       <DependentUpon>AdminHome.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Customer.master.cs">
+      <DependentUpon>Customer.master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Customer.master.designer.cs">
+      <DependentUpon>Customer.master</DependentUpon>
+    </Compile>
+    <Compile Include="BusinessPage.aspx.cs">
+      <DependentUpon>BusinessPage.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="BusinessPage.aspx.designer.cs">
+      <DependentUpon>BusinessPage.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerAddresses.aspx.cs">
+      <DependentUpon>CustomerAddresses.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerAddresses.aspx.designer.cs">
+      <DependentUpon>CustomerAddresses.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerBrowse.aspx.cs">
+      <DependentUpon>CustomerBrowse.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerBrowse.aspx.designer.cs">
+      <DependentUpon>CustomerBrowse.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerCards.aspx.cs">
+      <DependentUpon>CustomerCards.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerCards.aspx.designer.cs">
+      <DependentUpon>CustomerCards.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerCart.aspx.cs">
+      <DependentUpon>CustomerCart.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerCart.aspx.designer.cs">
+      <DependentUpon>CustomerCart.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerCheckout.aspx.cs">
+      <DependentUpon>CustomerCheckout.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerCheckout.aspx.designer.cs">
+      <DependentUpon>CustomerCheckout.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerFavorites.aspx.cs">
+      <DependentUpon>CustomerFavorites.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerFavorites.aspx.designer.cs">
+      <DependentUpon>CustomerFavorites.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerHome.aspx.cs">
+      <DependentUpon>CustomerHome.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerHome.aspx.designer.cs">
+      <DependentUpon>CustomerHome.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="CustomerOrders.aspx.cs">
+      <DependentUpon>CustomerOrders.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="CustomerOrders.aspx.designer.cs">
+      <DependentUpon>CustomerOrders.aspx</DependentUpon>
     </Compile>
     <Compile Include="Default.aspx.cs">
       <DependentUpon>Default.aspx</DependentUpon>
